@@ -50,7 +50,8 @@ export async function probeFiio(device: HidLike, opts: { timeoutMs?: number } = 
     const seq = nextSeq();
     const raw = await transport.request(build(seq), (r) => parseReply(r)?.cmd === cmd);
     const reply = parseReply(raw)!;
-    say(`${name}: reply payload ${hex(reply.payload) || '(empty)'} (crc ${reply.crcOk ? 'ok' : 'mismatch'})`);
+    const crc = reply.crcOk ? 'ok' : raw[6 + reply.payload.length] === 0 ? 'not set' : 'mismatch';
+    say(`${name}: reply payload ${hex(reply.payload) || '(empty)'} (crc ${crc})`);
     return reply.payload;
   };
   const step = async <T>(name: string, fn: () => Promise<T>): Promise<T | undefined> => {

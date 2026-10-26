@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { connectFiio } from './devices/fiio/adapter';
-import { pickFiioInterface } from './devices/fiio/models';
+import { FIIO_MODELS, pickFiioInterface } from './devices/fiio/models';
 import type { DeviceAdapter } from './devices/types';
 import { isWebHidSupported, requestFiioDevices } from './transport/webhid';
 import { Bench } from './ui/Bench';
@@ -56,7 +56,18 @@ export function App() {
     <main className="app screen">
       <Stripes />
       <h1 className="display">OzyBridge</h1>
-      <p className="message">Control your FiiO BTR17 EQ from the browser. Close FiiO Control first, then connect.</p>
+      <p className="message">Control your DAC&apos;s EQ from the browser. Close FiiO Control first, then connect.</p>
+      <section className="supported-devices" aria-labelledby="supported-devices-heading">
+        <h2 id="supported-devices-heading" className="supported-devices__heading">Supported devices</h2>
+        <ul className="supported-devices__list">
+          {FIIO_MODELS.map((model) => (
+            <li key={model.productId}>{model.name}</li>
+          ))}
+        </ul>
+        <p className="supported-devices__probe">
+          Have another FiiO device? Run the read-only <a href="?probe">device probe</a> and send us the report.
+        </p>
+      </section>
       {disconnected && <p className="message">{DISCONNECTED}</p>}
       <button className="btn-primary" onClick={connect}>CONNECT</button>
       {error && <p className="message error">{error}</p>}
