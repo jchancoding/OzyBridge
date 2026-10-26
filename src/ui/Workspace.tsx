@@ -205,7 +205,7 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
     const d = shared.current;
     if (!readDone || !d) return;
     // Keep the link in the address bar if the slot read failed, so a reload can retry it.
-    if (userSlots.some((s) => !profiles[s.id])) return;
+    if (userSlots.some((s) => profiles[s.id] === undefined)) return;
     shared.current = null;
     history.replaceState(null, '', location.pathname + location.search);
     if (!d.ok) return;
@@ -214,17 +214,20 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
       setNotice({ kind: 'error', text: fit.errors.map((e) => e.message).join(' ') });
       return;
     }
-    const id = selected;
+    const id = userSlots[0]?.id ?? selected;
+    setSelected(id);
+    setDraft(fit.profile);
     setNotice({
       kind: 'confirm',
-      text: `Shared EQ "${d.name}": write it to slot ${index(id)}?`,
+      text: `Shared EQ "${d.name}" is loaded below. It is not on the device yet.`,
       yes: `Write to slot ${index(id)}`,
-      no: 'Dismiss',
+      no: 'Not now',
       danger: false,
       go: () => requestWrite(id, fit.profile, fit.notes.length ? ` ${fit.notes.join(' ')}` : '', d.name),
     });
+    // Retries once the slot read has filled `profiles`. `shared` is cleared above so it runs once.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [readDone]);
+  }, [readDone, profiles]);
 
   useEffect(() => {
     if (notice?.kind !== 'ok' && notice?.kind !== 'info') return;

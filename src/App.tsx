@@ -8,6 +8,7 @@ import { describeConnectError } from './ui/connectMessages';
 import { Footer } from './ui/Footer';
 import { Probe } from './ui/Probe';
 import { deviceReportUrl } from './ui/reportLink';
+import { decodeShareFragment } from './core/shareLink';
 import { Stripes, Workspace } from './ui/Workspace';
 
 const UNTESTED_NOTE = 'Untested models use settings from devicePEQ hardware captures. Every write is read back and checked, but nobody has confirmed them with OzyBridge yet.';
@@ -17,6 +18,7 @@ export function App() {
   const [adapter, setAdapter] = useState<DeviceAdapter | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [disconnected, setDisconnected] = useState<string | null>(null);
+  const sharedLink = location.hash.startsWith('#eq=') ? decodeShareFragment(location.hash) : null;
 
   const attach = async (device: Parameters<typeof connectFiio>[0]) => {
     const a = await connectFiio(device);
@@ -80,6 +82,12 @@ export function App() {
       <Stripes />
       <h1 className="display">OzyBridge</h1>
       <p className="message">Control your DAC&apos;s EQ from the browser. Close FiiO Control first, then connect.</p>
+      {sharedLink?.ok && (
+        <p className="message">
+          This link is the EQ &ldquo;{sharedLink.name}&rdquo;. Connect, and it will show on screen for you to write to a slot. Nothing is sent to the device until you confirm.
+        </p>
+      )}
+      {sharedLink && !sharedLink.ok && <p className="message error">{sharedLink.errors[0]}</p>}
       <section className="supported-devices" aria-labelledby="supported-devices-heading">
         <h2 id="supported-devices-heading" className="supported-devices__heading">Supported devices</h2>
         <ul className="supported-devices__list">
