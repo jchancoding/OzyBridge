@@ -11,7 +11,7 @@
   bottom: 0;
   left: 0;
   width: 40%;
-  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--oz-surface) 60%, transparent), transparent);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--oz-accent) 16%, transparent), transparent);
   transform: translateX(-150%) skewX(-45deg);
   pointer-events: none;
 }
@@ -47,7 +47,7 @@
 
 .graph-sweep { pointer-events: none; animation: oz-sweep 600ms var(--oz-ease) 1 forwards; }
 .graph-sweep-line { fill: var(--oz-accent); }
-.graph-sweep-wash { fill: var(--oz-accent-wash); }
+.graph-sweep-wash { fill: var(--oz-accent); opacity: 0.08; }
 @keyframes oz-sweep {
   from { transform: translateX(0); opacity: 1; }
   to { transform: translateX(var(--sweep-w, 938px)); opacity: 0; }
