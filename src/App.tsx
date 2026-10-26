@@ -16,7 +16,8 @@ import { decodeShareFragment } from './core/shareLink';
 import { Stripes, Workspace } from './ui/Workspace';
 
 const UNTESTED_NOTE = 'Untested models use settings from devicePEQ hardware captures. Every write is read back and checked, but nobody has confirmed them with OzyBridge yet.';
-const WALKPLAY_NOTE = 'MOONDROP Marigold can be read. Writes stay off until someone confirms a save on the hardware.';
+const WALKPLAY_NOTE =
+  'Listed WalkPlay devices can be read. Writes stay off until someone confirms a save on the hardware.';
 const disconnectedText = (name: string) => `${name} disconnected. Plug it back in and click Connect. Chrome forgets the permission when the device is unplugged.`;
 
 export function App() {

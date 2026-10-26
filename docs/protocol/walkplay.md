@@ -1,15 +1,29 @@
 # WalkPlay USB HID protocol notes
 
-Status: read-only slice for Scheme 10 (MOONDROP Marigold). Derived from hardware captures and [jeromeof/devicePEQ](https://github.com/jeromeof/devicePEQ) `devicePEQ/walkplayHidHandler.js` (0BSD). Not yet confirmed on our device.
+Status: read-only slice for schemes 10, 15, 16, and 18. Derived from hardware captures and [jeromeof/devicePEQ](https://github.com/jeromeof/devicePEQ) `devicePEQ/walkplayHidHandler.js` (0BSD). Not yet confirmed on our hardware.
 
-## USB identity (capture, 2026-05-03)
+## USB identity (captures, 2026-05-03)
 
-| Field | Value |
-|---|---|
-| Vendor ID | `0x35D8` (13784) |
-| Product ID | `0x011C` (284) |
-| Product name | `MOONDROP Marigold` |
-| Scheme | 10 (8 bands, PK only) |
+| Model | Vendor ID | Product ID | Scheme |
+|---|---|---|---|
+| MOONDROP Marigold | `0x35D8` | `0x011C` | 10 |
+| ddHiFi DSP Cable - Memory | `0x3302` | `0x4357` | 15 |
+| TANCHJIM-STARGATE II | `0x3302` | `0x43D4` | 15 (PK only) |
+| Protocol Max | `0x3302` | `0x43CC` | 16 |
+| TP35 Pro | `0x3302` | `0x43E6` | 16 |
+| TANCHJIM-SPACE PRO | `0x3302` | `0x4367` | 16 (PK only) |
+| Octave | `0x3302` | `0x39C3` | 18 |
+
+## Schemes (read path in OzyBridge)
+
+| Scheme | Bands | Filter types (UI) | Gain range | Models |
+|---|---|---|---|---|
+| 10 | 8 | PK | ±10 dB | Marigold |
+| 15 | 8 | LSC, PK, HSC (Stargate II: PK only) | ±10 dB | ddHiFi DSP Cable, TANCHJIM-STARGATE II |
+| 16 | 10 | LSC, PK, HSC (Space Pro: PK only) | ±10 dB | Protocol Max, TP35 Pro, TANCHJIM-SPACE PRO |
+| 18 | 10 | LSC, PK, HSC | ±10 dB | Octave |
+
+Custom user slot id **101** (`Custom`) on all models above. No frequency or Q compensation on read for these schemes.
 
 ## Transport
 
@@ -40,14 +54,26 @@ PEQ per-band reply layout (report ID stripped):
 | [27..28] | Frequency, uint16 LE, Hz |
 | [29..30] | Q, uint16 LE, 8.8 fixed-point |
 | [31..32] | Gain, int16 LE, 8.8 fixed-point, dB |
-| [33] | Type: `1=LS 2=PK 3=HS 4=LP 5=HP` |
+| [33] | Type byte (see below) |
 
-Scheme 10 has no frequency or Q compensation on read; values above are used directly.
+### Type byte (index 33)
+
+Decoded on read as:
+
+| Byte | Filter |
+|---|---|
+| `1` | Low shelf (LSC) |
+| `2` | Peaking (PK) |
+| `3` | High shelf (HSC) |
+| `4` | LP (unsupported in OzyBridge read path — **ProtocolError**) |
+| `5` | HP (unsupported in OzyBridge read path — **ProtocolError**) |
+
+Values are used directly; schemes 10, 15, 16, and 18 apply **no** frequency or Q compensation on read.
 
 ## Forbidden until a later verified slice
 
 Do not send write direction (`0x01`), including PEQ writes (`0x09`), global gain write (`0x03`), flash (`0x01`), memory refresh (`0x05`), ENC refresh (`0x17`), or temp write (`0x0A`). Mic gain, DAC extras, and other command bytes are out of scope.
 
-## Marigold capture reference
+## Capture references
 
-Read session bytes match `src/devices/walkplay/__fixtures__/walkplay_default_moondrop_marigold.json` (from devicePEQ `tests/captures/walkplay_default_moondrop_marigold.json`).
+Fixtures under `src/devices/walkplay/__fixtures__/` are copied from devicePEQ `tests/captures/` (0BSD).
