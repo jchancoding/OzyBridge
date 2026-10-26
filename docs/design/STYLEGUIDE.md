@@ -7,7 +7,7 @@ Tokens below are the source of truth. They live in `src/ui/tokens.css` once scaf
 
 ## Principles
 
-1. **Light and clean.** Bright off-white surfaces, cool greys, lots of air. No dark-mode-first design; dark mode is a later variant.
+1. **Light and clean.** Bright off-white surfaces, cool greys, lots of air. Light is the primary theme; dark is the "desert night" variant of the same system.
 2. **Precision geometry.** Straight lines, 45° chamfered corners, thin rules. No soft blobs, no heavy shadows, no rounded pills.
 3. **One accent at a time.** Electric cyan is the system colour. Signal colours only carry meaning (warning, clipping, active).
 4. **Data is the hero.** The EQ curve and numbers get the most contrast. Chrome stays quiet.
@@ -21,18 +21,60 @@ Tokens below are the source of truth. They live in `src/ui/tokens.css` once scaf
 | `--oz-surface` | `#FFFFFF` | Panels |
 | `--oz-surface-2` | `#E9EDF1` | Inset areas, inactive slots |
 | `--oz-line` | `#C9D1D9` | Hairlines, grid |
-| `--oz-line-strong` | `#8C98A4` | Axis lines, dividers |
+| `--oz-line-strong` | `#88949F` | Axis lines, dividers |
 | `--oz-text` | `#101820` | Primary text |
 | `--oz-text-2` | `#4A5563` | Secondary text |
-| `--oz-text-3` | `#7D8794` | Labels, units |
-| `--oz-accent` | `#00A6E0` | System accent: focus, selection, primary curve |
-| `--oz-accent-strong` | `#0077B6` | Pressed states, accent text on white |
+| `--oz-text-3` | `#5F6975` | Labels, units |
+| `--oz-accent` | `#0086BD` | System accent: focus, selection, primary curve |
+| `--oz-accent-strong` | `#006FAA` | Accent text on light surfaces |
+| `--oz-accent-fill` | `#0077B6` | Primary button fill |
 | `--oz-accent-wash` | `#DFF4FC` | Selected backgrounds |
 | `--oz-signal` | `#FF5A1F` | Active / live / write in progress |
-| `--oz-warn` | `#FFB800` | Constraint warnings (band dropped, value clamped) |
-| `--oz-danger` | `#E5254B` | Clipping, write failure, disconnect |
-| `--oz-ok` | `#14B87A` | Verified write, connected |
+| `--oz-warn` | `#A87400` | Constraint warnings (band dropped, value clamped) |
+| `--oz-danger` | `#D61F45` | Clipping, write failure, disconnect |
+| `--oz-ok` | `#0B7F55` | Verified write, connected |
+| `--oz-drop` | `#C25E00` | Drop target outline |
+| `--oz-drop-wash` | `#FFF0DC` | Drop target background |
 | `--oz-curve-2` | `#B34DFF` | Secondary curve (target or comparison) |
+| `--oz-on-accent` / `--oz-on-danger` / `--oz-on-ok` | `#FFFFFF` | Label on the matching fill |
+| `--oz-danger-wash` | `#FFF1F4` | Error notice, invalid field |
+| `--oz-warn-wash` | `#FFF8E1` | Confirm notice |
+| `--oz-scrim` | `rgb(16 24 32 / 0.12)` | Drag overlay |
+| `--oz-inverse` / `--oz-on-inverse` | `#101820` / `#FFFFFF` | Drag overlay label |
+| `--oz-glass` | `rgb(255 255 255 / 0.92)` | Chrome panels (used from task 8b) |
+| `--oz-blur` | `10px` | Chrome panel blur (used from task 8b) |
+
+### Dark theme: desert night
+
+Set with `<html data-theme="dark">`. Tokens not listed (spacing, motion, `--oz-blur`) are shared.
+
+| Token | Value |
+|---|---|
+| `--oz-bg` | `#0E131A` |
+| `--oz-surface` | `#161D26` |
+| `--oz-surface-2` | `#1F2833` |
+| `--oz-line` | `#2E3A47` |
+| `--oz-line-strong` | `#6B7888` |
+| `--oz-text` | `#E8EDF2` |
+| `--oz-text-2` | `#A9B4C0` |
+| `--oz-text-3` | `#9AA6B4` |
+| `--oz-accent` | `#22C3F5` |
+| `--oz-accent-strong` | `#6BD6FF` |
+| `--oz-accent-fill` | `#22C3F5` |
+| `--oz-accent-wash` | `#0F2E3D` |
+| `--oz-signal` | `#FF7A45` |
+| `--oz-warn` | `#FFC633` |
+| `--oz-danger` | `#FF5C7A` |
+| `--oz-ok` | `#2FD49A` |
+| `--oz-drop` | `#FF9A3D` |
+| `--oz-drop-wash` | `#3A2610` |
+| `--oz-curve-2` | `#C77DFF` |
+| `--oz-on-accent` / `--oz-on-danger` / `--oz-on-ok` | `#0E131A` |
+| `--oz-danger-wash` | `#3A1620` |
+| `--oz-warn-wash` | `#3A3010` |
+| `--oz-scrim` | `rgb(0 0 0 / 0.45)` |
+| `--oz-inverse` / `--oz-on-inverse` | `#E8EDF2` / `#101820` |
+| `--oz-glass` | `rgb(22 29 38 / 0.92)` |
 
 Rules:
 
