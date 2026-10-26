@@ -4,6 +4,7 @@ import { exportAutoEq, parseAutoEq } from '../core/autoeq';
 import type { EqBand, EqProfile, FilterType, Range } from '../core/eq';
 import { exportFiioXml, parseFiioXml } from '../core/fiioXml';
 import { fitProfile } from '../core/fit';
+import { decodeShareFragment, encodeShareFragment } from '../core/shareLink';
 import { isFlat, matchSlotNames, parseSlotNames, renameSlot, serializeSlotNames, type SlotNames } from '../core/slotNames';
 import { commitNumber, inRange, parseDecimal, stepValue } from '../core/step';
 import type { DeviceAdapter } from '../devices/types';
@@ -14,7 +15,7 @@ const GAIN_STEPS = [-1, -0.5, 0.5, 1];
 
 type Notice =
   | { kind: 'info' | 'ok' | 'error' | 'busy'; text: string; undo?: () => void }
-  | { kind: 'confirm'; text: string; go: () => void }
+  | { kind: 'confirm'; text: string; go: () => void; yes?: string; no?: string; danger?: boolean }
   | null;
 
 function download(name: string, text: string, type: string) {
@@ -126,6 +127,8 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
   const [lastWrite, setLastWrite] = useState<{ id: number; profile: EqProfile; name: string } | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
   const lastOn = useRef<number>(userSlots[0]?.id ?? 0);
+  const shared = useRef<ReturnType<typeof decodeShareFragment> | null>(null);
+  const [readDone, setReadDone] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const restoreRef = useRef<HTMLInputElement>(null);
 
@@ -172,7 +175,14 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
     }
   }, []);
 
+  useState(() => {
+    const d = decodeShareFragment(location.hash);
+    if (d.ok) shared.current = d;
+    if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+  });
+
   useEffect(() => {
+    setReadDone(false);
     void run('Reading slots from the device...', async () => {
       const a = await adapter.getActiveSlot();
       setActive(a);
@@ -182,9 +192,30 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
         setProfiles((all) => ({ ...all, [s.id]: p }));
       }
       return 'Slots read.';
-    });
+    }).then(() => setReadDone(true));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [adapter]);
+
+  useEffect(() => {
+    const d = shared.current;
+    if (!readDone || !d || !d.ok) return;
+    shared.current = null;
+    const fit = fitProfile(d.profile, cap);
+    if (!fit.ok) {
+      setNotice({ kind: 'error', text: fit.errors.map((e) => e.message).join(' ') });
+      return;
+    }
+    const id = selected;
+    setNotice({
+      kind: 'confirm',
+      text: `Shared EQ "${d.name}": write it to slot ${index(id)}?`,
+      yes: `Write to slot ${index(id)}`,
+      no: 'Dismiss',
+      danger: false,
+      go: () => requestWrite(id, fit.profile, fit.notes.length ? ` ${fit.notes.join(' ')}` : '', d.name),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [readDone]);
 
   useEffect(() => {
     if (notice?.kind !== 'ok' && notice?.kind !== 'info') return;
@@ -305,6 +336,17 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
     requestWrite(selected, fit.profile, fit.notes.length ? ` ${fit.notes.join(' ')}` : '');
   };
 
+  const copyShare = async () => {
+    if (!shown) return;
+    const frag = encodeShareFragment({ name: fileBase, profile: shown });
+    try {
+      await navigator.clipboard.writeText(`${location.origin}${location.pathname}#${frag}`);
+      setNotice({ kind: 'ok', text: 'Share link copied.' });
+    } catch {
+      setNotice({ kind: 'error', text: 'The browser blocked clipboard access. Allow it and try again.' });
+    }
+  };
+
   const fileBase = slotName(selected) || `${product} slot ${Number(index(selected))}`;
   const sel = index(selected);
 
@@ -339,8 +381,8 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
             <span className="notice-text">{notice.text}</span>
             {notice.kind === 'confirm' && (
               <>
-                <button className="btn-danger" autoFocus onClick={() => { const g = notice.go; setNotice(null); g(); }}>Yes, overwrite</button>
-                <button className="btn-secondary" onClick={() => setNotice(null)}>Cancel</button>
+                <button className={notice.danger === false ? 'btn-primary' : 'btn-danger'} autoFocus onClick={() => { const g = notice.go; setNotice(null); g(); }}>{notice.yes ?? 'Yes, overwrite'}</button>
+                <button className="btn-secondary" onClick={() => setNotice(null)}>{notice.no ?? 'Cancel'}</button>
               </>
             )}
             {notice.kind === 'ok' && notice.undo && <button className="btn-secondary" disabled={busy} onClick={notice.undo}>Undo</button>}
@@ -431,6 +473,7 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
           <div className="bar">
             <button className="btn-secondary" disabled={!shown} onClick={() => shown && download(`${fileBase}.txt`, exportAutoEq(shown, { omitFlat: true }), 'text/plain')}>Download .txt (Squiglink / AutoEQ)</button>
             <button className="btn-secondary" disabled={!shown} onClick={() => shown && download(`${fileBase}.xml`, exportFiioXml(shown, { model: product, name: slotName(selected) || undefined }), 'application/xml')}>Download .xml (FiiO)</button>
+            <button className="btn-secondary" disabled={!shown} title="Copies a link that contains this EQ. Nothing is uploaded." onClick={() => void copyShare()}>Copy share link</button>
           </div>
         </section>
         <section className="action-group">
