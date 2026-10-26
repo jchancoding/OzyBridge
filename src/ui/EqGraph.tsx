@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, type CSSProperties } from 'react';
 import type { EqProfile } from '../core/eq';
 import { logFrequencies, profileResponseDb } from '../core/response';
 
@@ -38,8 +38,8 @@ function curvePath(profile: EqProfile, n: number, fx: (f: number) => number, fy:
   };
 }
 
-export function EqGraph({ profile, thumb = false, label = 'Current', compare }: {
-  profile: EqProfile; thumb?: boolean; label?: string; compare?: { profile: EqProfile; label: string };
+export function EqGraph({ profile, thumb = false, label = 'Current', compare, sweep = 0 }: {
+  profile: EqProfile; thumb?: boolean; label?: string; compare?: { profile: EqProfile; label: string }; sweep?: number;
 }) {
   const cmpPath = useMemo(
     () => (!thumb && compare ? curvePath(compare.profile, 260, x, y).path : null),
@@ -97,6 +97,14 @@ export function EqGraph({ profile, thumb = false, label = 'Current', compare }: 
             </g>
           ))}
         </g>
+      )}
+      {sweep > 0 && (
+        <svg key={sweep} x={L} y={T} width={PW} height={PH} overflow="hidden" aria-hidden>
+          <g className="graph-sweep" style={{ '--sweep-w': `${PW}px` } as CSSProperties}>
+            <rect x={-60} y={0} width={60} height={PH} className="graph-sweep-wash" />
+            <rect x={-2} y={0} width={2} height={PH} className="graph-sweep-line" />
+          </g>
+        </svg>
       )}
       <text x={L + PW / 2} y={H - 8} className="graph-axis" textAnchor="middle">Frequency (Hz)</text>
       <text transform={`translate(14 ${T + PH / 2}) rotate(-90)`} className="graph-axis" textAnchor="middle">Gain (dB)</text>
