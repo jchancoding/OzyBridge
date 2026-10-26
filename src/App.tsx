@@ -5,6 +5,8 @@ import type { DeviceAdapter } from './devices/types';
 import { isWebHidSupported, requestFiioDevices } from './transport/webhid';
 import { Bench } from './ui/Bench';
 import { describeConnectError } from './ui/connectMessages';
+import { Footer } from './ui/Footer';
+import { Probe } from './ui/Probe';
 import { Stripes, Workspace } from './ui/Workspace';
 
 const DISCONNECTED = 'BTR17 disconnected. Plug it back in and click Connect. Chrome forgets the permission when the device is unplugged.';
@@ -33,7 +35,9 @@ export function App() {
     );
   }
 
-  if (new URLSearchParams(location.search).has('bench')) return <Bench />;
+  const params = new URLSearchParams(location.search);
+  if (params.has('bench')) return <Bench />;
+  if (params.has('probe')) return <Probe />;
 
   const connect = async () => {
     setError(null);
@@ -46,7 +50,7 @@ export function App() {
     }
   };
 
-  if (adapter) return <main className="app screen"><Workspace adapter={adapter} /></main>;
+  if (adapter) return <main className="app screen"><Workspace adapter={adapter} /><Footer /></main>;
 
   return (
     <main className="app screen">
@@ -56,6 +60,7 @@ export function App() {
       {disconnected && <p className="message">{DISCONNECTED}</p>}
       <button className="btn-primary" onClick={connect}>CONNECT</button>
       {error && <p className="message error">{error}</p>}
+      <Footer />
     </main>
   );
 }

@@ -51,6 +51,18 @@ Steps:
 
 Exit: BTR13 verified by a tester, a preset library in use, and one non-FiiO adapter verified on hardware.
 
+Done early (2026-10-27): `?probe`, a read-only page that reports any FiiO device's product ID, USB collections, band count, active slot, preamp and raw bands, for remote testers.
+
+Phase 7a quality of life, agreed 2026-10-27 (small executor tasks):
+
+- Export all slots as one JSON file.
+- Undo last write (keep the slot's previous profile in memory; one click restores it).
+- Shareable EQ links: name, preamp and bands encoded in the URL fragment (never sent to a server). Opening one offers to save or write it.
+- Compare: a slot card button overlays that slot's curve on the graph in `--oz-curve-2`.
+- Preset library: named EQs in browser storage, save from slot, drop onto slot, rename, delete, JSON backup. No APIs.
+
+Porting rule for other vendors: port devicePEQ handlers chip by chip into typed adapters, use its captures as test fixtures, keep our command allowlist and read-back. Do not copy its handlers wholesale (its BTR17 save is FiiO's factory reset).
+
 ## Phase 8: Visual refresh
 
 Brainstorm first, then a written spec, then build. Within `docs/design/STYLEGUIDE.md` (WipeOut / Ridge Racer), with a PSP-era nostalgic layer:
@@ -58,18 +70,18 @@ Brainstorm first, then a written spec, then build. Within `docs/design/STYLEGUID
 - Pixel-art mascot or logo, drawn as code (rect-based SVG, 16-24 px grid, 4-6 colours) so it stays crisp and small. Idle animation in CSS only.
 - Glass panels (backdrop blur over a subtle animated grid or scanline background), with `prefers-reduced-motion` and contrast fallbacks.
 - Small hover moments: slot cards that tilt or glint, a "boot" stagger on connect, a scan sweep across the graph after a write.
+- Dark mode: a dark token set in `src/ui/tokens.css`, following `prefers-color-scheme` with a manual toggle stored in the browser. Graph and drop colours checked for contrast in both.
 - Optional "skins" (palette swaps via tokens), which also fit the monetisation ideas below.
 
 Workflow tips gathered from r/ClaudeAI: give the model a reference screenshot and the token file, change one design dimension at a time (type, colour, motion), and for the mascot use a code-first pixel workflow (e.g. claude-pxl, sprite-forge) rather than image generation.
 
 ## Backlog (not scheduled)
 
-- Repo: protect `main` (PRs required, no force-push); work on branches and merge with PR notes.
-- Footer: discreet "buy me a coffee" PayPal link; credits for Inter, JetBrains Mono and Michroma (SIL OFL).
 - Squiglink integration: open the current EQ in Squiglink, or overlay a headphone's measured response (read-only, user-initiated, no runtime network by default).
 - Shareable EQ links (EQ encoded in the URL fragment, no server).
-- A/B compare two slots, undo last write, export all slots as one zip or JSON.
-- Monetisation stays non-intrusive: donations first; optional cosmetic skins or mascot variants later. No ads or tracking, which would break the "no network, no analytics" rule.
+- Monetisation stays non-intrusive: PayPal donation link in the footer; optional cosmetic skins or mascot variants later. No ads.
+
+Repo practice (2026-10-27): `main` is protected by a ruleset (PR required, CI `check` must pass, no force-push or deletion). Work on branches, merge with PR notes. MIT licence. Visitor counts via GoatCounter, cookie-free, dashboard behind the GoatCounter login.
 
 ## Model routing
 

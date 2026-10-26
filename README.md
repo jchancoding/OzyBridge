@@ -27,6 +27,8 @@ Open the URL Vite prints (usually `http://localhost:5173/`), then use **Connect*
 
 Optional: add `?bench` for low-level adapter checks on hardware (`src/ui/Bench.tsx`, protocol notes in `docs/protocol/fiio-btr17.md`).
 
+Optional: add `?probe` for a read-only FiiO device report (`src/ui/Probe.tsx`) that users of unsupported models can copy back to us.
+
 ## Develop
 
 | Command | Purpose |
