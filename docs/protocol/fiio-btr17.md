@@ -160,7 +160,7 @@ If added later: read-only probe first, then set on the bench.
 - Round 2 (blind sets, raw input logging): set `0x16` takes effect, confirmed by a get 200 ms later. Band and preamp sets take effect, and read-back matched exactly for a one-band change, the 10-band A2000 file, and the restore. A full slot write takes about 4.5 s with the 2 s preamp wait.
 - Sets get no reply of any kind. About 16 ms after each `BB 0B` reply the device sends one all-zero report 7. It is a trailer, not an ack. `parseReply` ignores it.
 - Get `0x0B` gets nothing but that trailer. The BTR17 config sets `firmwareCmd: false`.
-- Chrome exposes the command collection as usage page `0x01`, usage `0x00` (in and out report 7), plus consumer control `0x0C/0x01` (in report 2) on the same HID device. The chooser filters on usage page `0x01`.
+- Chrome exposes the command collection as usage page `0x01`, usage `0x00` (in and out report 7), plus consumer control `0x0C/0x01` (in report 2) on the same HID device. The chooser filters on usage page `0x01`, and it then lists a single BTR17 entry (confirmed).
 
 ## Open questions
 

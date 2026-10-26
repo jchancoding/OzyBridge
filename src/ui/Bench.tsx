@@ -11,6 +11,15 @@ import { requestFiioDevices } from '../transport/webhid';
 
 const TEST_SLOT = 169;
 const BACKUP_KEY = 'ozy-bench-user10-backup';
+const LOG_KEY = 'ozy-bench-log';
+
+function loadLog(): string[] {
+  try {
+    return JSON.parse(sessionStorage.getItem(LOG_KEY) ?? '[]') as string[];
+  } catch {
+    return [];
+  }
+}
 
 function hex(b: Uint8Array): string {
   const framed = (b[0] === 0xaa || b[0] === 0xbb) && b.length >= 8 && b[7 + (b[5] ?? 0)] === 0xee;
@@ -44,11 +53,19 @@ export function Bench() {
   const [backup, setBackup] = useState<EqProfile | null>(loadBackup);
   const [afterPreampMs, setAfterPreampMs] = useState(DEFAULT_FIIO_TIMING.afterPreampMs);
   const [busy, setBusy] = useState(false);
-  const [log, setLog] = useState<string[]>([]);
+  const [log, setLog] = useState<string[]>(loadLog);
 
   const say = (line: string) => {
     const t = new Date().toISOString().slice(11, 23);
-    setLog((l) => [...l.slice(-499), `${t} ${line}`]);
+    setLog((l) => {
+      const next = [...l.slice(-999), `${t} ${line}`];
+      sessionStorage.setItem(LOG_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+  const clearLog = () => {
+    sessionStorage.removeItem(LOG_KEY);
+    setLog([]);
   };
   const sayProfile = (p: EqProfile) => exportAutoEq(p).trimEnd().split('\n').forEach((l) => say(`   ${l}`));
 
@@ -148,6 +165,9 @@ export function Bench() {
 
   const restore = (a: FiioAdapter, b: EqProfile) =>
     run('5. Restore USER10 from backup', async () => {
+      say('   USER10 before restore:');
+      sayProfile(await a.readSlot(TEST_SLOT));
+      say('   restoring:');
       await writeAndRestoreActive(a, b);
       localStorage.removeItem(BACKUP_KEY);
       setBackup(null);
@@ -193,6 +213,7 @@ export function Bench() {
         <button className="btn-primary" disabled={!ready} onClick={() => adapter && readUser10(adapter)}>Read USER10</button>
         <button className="btn-primary" disabled={!ready} onClick={() => adapter && downloadXml(adapter)}>Export .xml</button>
         <button className="btn-primary" disabled={log.length === 0} onClick={() => void navigator.clipboard.writeText(log.join('\n'))}>Copy log</button>
+        <button className="btn-primary" disabled={busy || log.length === 0} onClick={clearLog}>Clear log</button>
       </div>
       {backup && <p className="message">USER10 backup saved in this browser. It survives a page reload. Step 5 restores it.</p>}
       <pre className="bench-log">{log.join('\n')}</pre>
