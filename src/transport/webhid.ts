@@ -86,6 +86,11 @@ export class HidTransport {
     throw new Error(`Output report ${this.reportId} not found on device`);
   }
 
+  subscribe(listener: (data: Uint8Array) => void): () => void {
+    this.listeners.add(listener);
+    return () => void this.listeners.delete(listener);
+  }
+
   send(bytes: Uint8Array): Promise<void> {
     return this.enqueue(() => this.doSend(bytes));
   }

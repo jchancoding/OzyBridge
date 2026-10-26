@@ -80,6 +80,17 @@ describe('HidTransport', () => {
     expect([...(await p)]).toEqual([0xaa, 5]);
   });
 
+  it('subscribe sees every report on the report id until unsubscribed', async () => {
+    const { dev, t } = await make();
+    const seen: number[] = [];
+    const off = t.subscribe((d) => seen.push(d[0]!));
+    dev.emit(7, [1]);
+    dev.emit(9, [2]);
+    off();
+    dev.emit(7, [3]);
+    expect(seen).toEqual([1]);
+  });
+
   it('request times out', async () => {
     const { t } = await make({ timeoutMs: 500 });
     const p = t.request(new Uint8Array([1]), () => true);

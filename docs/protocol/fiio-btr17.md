@@ -35,7 +35,7 @@ Command channel (observed descriptor): vendor collection with **report ID 7**, 3
 - Report ID 7. Output reports zero-padded to 32 bytes.
 - Request/response: send one frame, wait for the next input report. FiiO matches replies on byte 4 (command ID) only.
 - All device I/O goes through one serial task queue. Never have two requests in flight.
-- Band writes are fire-and-forget (`sendReport`, no wait). Everything else waits for a reply.
+- Band writes are fire-and-forget (`sendReport`, no wait). FiiO waits for a reply on everything else, but our BTR17 does not reply to sets (see Bench results), so OzyControl sends all sets blind and verifies with gets.
 - One controller at a time: close FiiO Control before connecting OzyControl.
 
 ## Frame layout (FiiO)
@@ -151,9 +151,16 @@ Commands present in FiiO's shared table that might apply, all unverified on the 
 
 If added later: read-only probe first, then set on the bench.
 
+## Bench results (observed, 2026-10-26, OzyControl bench)
+
+- Gets `0x18`, `0x16`, `0x15`, `0x17` reply within about 30 ms. Layouts match the doc. Our frames with a real sequence and CRC are accepted.
+- Every reply has sequence `00 00` and CRC byte `00`. The device does not fill either field.
+- No reply arrives to get `0x0B` (firmware) or to set `0x16` (switch preset) within 1 s, at least none with `BB 0B` headers. The adapter now sends sets blind and verifies with a get.
+- USER1 on our unit held bands at 31 and 62 Hz, not FiiO's 32 and 64 Hz reset defaults. The slot was probably edited before.
+
 ## Open questions
 
-1. Does the BTR17 reply to every get, including with sequence and CRC set? (Short capture.)
-2. Does the save reply carry anything beyond an ack?
+1. Does set `0x16` take effect? Does anything (another header, another report ID) come back for sets? The bench now logs every input report raw.
+2. Does save `0x19` persist across a power cycle?
 3. Is there a heartbeat on HID, and what frame? (Short capture.)
 4. Does the BLE link accept the same commands? (Later.)

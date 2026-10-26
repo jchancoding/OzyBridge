@@ -13,9 +13,20 @@ const TEST_SLOT = 169;
 const BACKUP_KEY = 'ozy-bench-user10-backup';
 
 function hex(b: Uint8Array): string {
-  const framed = (b[0] === 0xaa || b[0] === 0xbb) && b.length >= 8;
-  const len = framed ? Math.min(b.length, 8 + (b[5] ?? 0)) : b.length;
+  const framed = (b[0] === 0xaa || b[0] === 0xbb) && b.length >= 8 && b[7 + (b[5] ?? 0)] === 0xee;
+  let len = framed ? 8 + (b[5] ?? 0) : b.length;
+  if (!framed) while (len > 1 && b[len - 1] === 0) len--;
   return [...b.subarray(0, len)].map((x) => x.toString(16).padStart(2, '0')).join(' ').toUpperCase();
+}
+
+function describeInterface(d: HIDDevice): string {
+  const cols = d.collections.map((c) => {
+    const ids = (kind: string, rs?: HIDReportInfo[]) =>
+      rs && rs.length ? ` ${kind}[${rs.map((r) => r.reportId).join(',')}]` : '';
+    const page = `0x${(c.usagePage ?? 0).toString(16)}/0x${(c.usage ?? 0).toString(16)}`;
+    return `${page}${ids('in', c.inputReports)}${ids('out', c.outputReports)}${ids('feat', c.featureReports)}`;
+  });
+  return `"${d.productName}" ${cols.join('; ')}`;
 }
 
 function loadBackup(): EqProfile | null {
@@ -64,8 +75,17 @@ export function Bench() {
 
   const connect = () =>
     run('Connect (reads band count and firmware)', async () => {
-      const dev = pickFiioInterface(await requestFiioDevices());
-      if (!dev) throw new Error('No supported FiiO command interface was granted.');
+      const picked = await requestFiioDevices();
+      const granted = [...new Set([...picked, ...(await navigator.hid.getDevices())])];
+      granted.forEach((d) => say(`   interface ${describeInterface(d)}`));
+      const dev = pickFiioInterface(granted);
+      if (!dev) {
+        throw new Error(
+          picked.length === 0
+            ? 'No device was picked.'
+            : 'That entry is not the BTR17 control interface. Click Connect again and pick the other BTR17 entry.',
+        );
+      }
       const a = await connectFiio(dev, {
         timing: { afterPreampMs },
         log: (dir, bytes) => say(`${dir === 'out' ? '>>' : '<<'} ${hex(bytes)}`),

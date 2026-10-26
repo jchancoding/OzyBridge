@@ -24,6 +24,8 @@ export class FakeFiioHid {
   silentCmds = new Set<number>();
   badCrcCmds = new Set<number>();
   corruptBandWrites = false;
+  ignoreSlotSwitch = false;
+  replyToSets = false;
   firmware = Uint8Array.from([...'1.2.3'].map((c) => c.charCodeAt(0)));
 
   slots = new Map<number, EqProfile>();
@@ -59,9 +61,8 @@ export class FakeFiioHid {
     const payload = b.slice(6, 6 + n);
     this.sent.push({ kind, cmd, payload, at: Date.now() });
     const reply = this.handle(kind, cmd, payload);
-    if (reply && !this.silentCmds.has(cmd)) {
-      const seq = [b[2]!, b[3]!];
-      queueMicrotask(() => this.emit(this.frame(cmd, reply, seq)));
+    if (reply && !this.silentCmds.has(cmd) && (kind === 'get' || this.replyToSets)) {
+      queueMicrotask(() => this.emit(this.frame(cmd, reply)));
     }
   };
 
@@ -73,7 +74,7 @@ export class FakeFiioHid {
       case 0x18:
         return Uint8Array.of(this.bandCount);
       case 0x16:
-        if (kind === 'set') this.active = p[0]!;
+        if (kind === 'set' && !this.ignoreSlotSwitch) this.active = p[0]!;
         return kind === 'set' ? p : Uint8Array.of(this.active);
       case 0x17:
         if (kind === 'set') {
@@ -97,12 +98,13 @@ export class FakeFiioHid {
     }
   }
 
-  private frame(cmd: number, payload: Uint8Array, seq: number[]): Uint8Array {
+  // Matches the real BTR17: sequence 0 and CRC byte 0 in every reply.
+  private frame(cmd: number, payload: Uint8Array): Uint8Array {
     const f = new Uint8Array(32);
-    f.set([0xbb, 0x0b, seq[0]!, seq[1]!, cmd, payload.length]);
+    f.set([0xbb, 0x0b, 0, 0, cmd, payload.length]);
     f.set(payload, 6);
     const crc = crc8Maxim(f.subarray(0, 6 + payload.length));
-    f[6 + payload.length] = this.badCrcCmds.has(cmd) ? crc ^ 0xff : crc;
+    f[6 + payload.length] = this.badCrcCmds.has(cmd) ? (crc ^ 0xff) || 1 : 0;
     f[7 + payload.length] = 0xee;
     return f;
   }

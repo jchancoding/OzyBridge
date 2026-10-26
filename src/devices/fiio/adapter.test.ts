@@ -7,7 +7,7 @@ import { pickFiioInterface } from './models';
 
 const FORBIDDEN = new Set([0x21, 0x1b, 0x1c, 0x30]);
 const fakes: FakeFiioHid[] = [];
-const ZERO = { bandGapMs: 0, afterPreampMs: 0 };
+const ZERO = { bandGapMs: 0, setGapMs: 0, afterPreampMs: 0, afterSaveMs: 0 };
 
 function makeFake(): FakeFiioHid {
   const f = new FakeFiioHid();
@@ -74,10 +74,11 @@ describe('connectFiio', () => {
     expect(f.sent).toEqual([]);
   });
 
-  it('counts bad CRCs but accepts the reply', async () => {
+  it('counts non-zero bad CRCs but accepts the reply; zero CRC is not counted', async () => {
     const f = makeFake();
     f.badCrcCmds.add(0x16);
     const a = await connect(f);
+    await a.readActiveProfile();
     expect(a.crcMismatches).toBe(0);
     expect(await a.getActiveSlot()).toBe(160);
     expect(a.crcMismatches).toBe(1);
@@ -156,7 +157,7 @@ describe('writeSlot', () => {
     })();
     f.sent.length = 0;
     const w = a.writeSlot(161, profile());
-    await vi.advanceTimersByTimeAsync(DEFAULT_FIIO_TIMING.bandGapMs * 10 + DEFAULT_FIIO_TIMING.afterPreampMs + 100);
+    await vi.advanceTimersByTimeAsync(10_000);
     await w;
     const bands = f.sent.filter((s) => s.kind === 'set' && s.cmd === 0x15);
     for (let i = 1; i < bands.length; i++) {
@@ -164,7 +165,18 @@ describe('writeSlot', () => {
     }
     const pre = f.sent.find((s) => s.kind === 'set' && s.cmd === 0x17)!;
     const save = f.sent.find((s) => s.cmd === 0x19)!;
-    expect(save.at - pre.at).toBeGreaterThanOrEqual(2000);
+    expect(save.at - pre.at).toBeGreaterThanOrEqual(DEFAULT_FIIO_TIMING.afterPreampMs);
+    const switchSet = f.sent.find((s) => s.kind === 'set' && s.cmd === 0x16)!;
+    const switchGet = f.sent.find((s) => s.kind === 'get' && s.cmd === 0x16)!;
+    expect(switchGet.at - switchSet.at).toBeGreaterThanOrEqual(DEFAULT_FIIO_TIMING.setGapMs);
+  });
+
+  it('still works when the device does reply to sets', async () => {
+    const f = makeFake();
+    f.replyToSets = true;
+    const a = await connect(f);
+    await expect(a.writeSlot(162, profile())).resolves.toBeDefined();
+    expect(f.active).toBe(162);
   });
 });
 
@@ -203,6 +215,16 @@ describe('readSlot and setActiveSlot', () => {
     f.sent.length = 0;
     await expect(a.setActiveSlot(170)).rejects.toBeInstanceOf(RangeError);
     expect(f.sent).toEqual([]);
+  });
+
+  it('rejects when the device ignores a slot switch, and writes nothing', async () => {
+    const f = makeFake();
+    f.ignoreSlotSwitch = true;
+    const a = await connect(f);
+    await expect(a.setActiveSlot(161)).rejects.toBeInstanceOf(ProtocolError);
+    f.sent.length = 0;
+    await expect(a.writeSlot(161, profile())).rejects.toBeInstanceOf(ProtocolError);
+    expect(f.sent.filter((s) => s.kind === 'set').map((s) => s.cmd)).toEqual([0x16]);
   });
 });
 

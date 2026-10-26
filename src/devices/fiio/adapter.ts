@@ -13,13 +13,13 @@ import {
   createSequence,
   decodeBandPayload,
   decodeGain,
+  encodeBandPayload,
   encodeGain,
   parseReply,
-  setBand,
 } from './protocol';
 
-export interface FiioTiming { bandGapMs: number; afterPreampMs: number }
-export const DEFAULT_FIIO_TIMING: FiioTiming = { bandGapMs: 100, afterPreampMs: 2000 };
+export interface FiioTiming { bandGapMs: number; setGapMs: number; afterPreampMs: number; afterSaveMs: number }
+export const DEFAULT_FIIO_TIMING: FiioTiming = { bandGapMs: 100, setGapMs: 200, afterPreampMs: 2000, afterSaveMs: 500 };
 
 export interface ConnectOpts {
   timing?: Partial<FiioTiming>;
@@ -48,28 +48,34 @@ export async function connectFiio(device: HidLike, opts: ConnectOpts = {}): Prom
   let crcMismatches = 0;
   const log = opts.log;
 
-  const request = async (
-    kind: 'get' | 'set',
-    cmd: number,
-    payload: Uint8Array = NONE,
-  ): Promise<Uint8Array> => {
-    const frame = buildFrame(kind, cmd, payload, nextSeq());
+  if (log) transport.subscribe((r) => log('in', r));
+
+  // BTR17 replies carry sequence 0 and CRC 0; only a non-zero wrong CRC counts as a mismatch.
+  const get = async (cmd: number, payload: Uint8Array = NONE): Promise<Uint8Array> => {
+    const frame = buildFrame('get', cmd, payload, nextSeq());
     log?.('out', frame);
     const raw = await transport.request(frame, (r) => parseReply(r)?.cmd === cmd);
     const reply = parseReply(raw)!;
-    log?.('in', raw);
-    if (!reply.crcOk) crcMismatches++;
+    if (!reply.crcOk && raw[6 + reply.payload.length] !== 0) crcMismatches++;
     return reply.payload;
+  };
+
+  // The BTR17 does not reply to set commands, so sets are sent blind and verified by a later get.
+  const set = async (cmd: number, payload: Uint8Array, waitMs: number): Promise<void> => {
+    const frame = buildFrame('set', cmd, payload, nextSeq());
+    log?.('out', frame);
+    await transport.send(frame);
+    await sleep(waitMs);
   };
 
   let firmware: string | null = null;
   try {
-    const count = (await request('get', CMD.PEQ_COUNT))[0];
+    const count = (await get(CMD.PEQ_COUNT))[0];
     if (count !== caps.maxBands) {
       throw new ProtocolError(`Device reports ${count} bands, expected ${caps.maxBands}`);
     }
     try {
-      const fw = await request('get', CMD.FIRMWARE_VERSION);
+      const fw = await get(CMD.FIRMWARE_VERSION);
       const printable = fw.length > 0 && fw.every((b) => b >= 0x20 && b <= 0x7e);
       firmware = printable ? String.fromCharCode(...fw) : [...fw].join('.');
     } catch (e) {
@@ -88,7 +94,7 @@ export async function connectFiio(device: HidLike, opts: ConnectOpts = {}): Prom
   };
 
   const getActive = async () => {
-    const p = await request('get', CMD.PEQ_PRE);
+    const p = await get(CMD.PEQ_PRE);
     return p[0] ?? 0;
   };
 
@@ -96,7 +102,7 @@ export async function connectFiio(device: HidLike, opts: ConnectOpts = {}): Prom
 
   const setActive = async (id: number) => {
     if (!isKnownSlot(id)) throw new RangeError(`Unknown slot ${id}`);
-    await request('set', CMD.PEQ_PRE, Uint8Array.of(id));
+    await set(CMD.PEQ_PRE, Uint8Array.of(id), timing.setGapMs);
     const now = await getActive();
     if (now !== id) throw new ProtocolError(`Slot switch failed: asked for ${id}, device is on ${now}`);
   };
@@ -104,11 +110,11 @@ export async function connectFiio(device: HidLike, opts: ConnectOpts = {}): Prom
   const readProfile = async (): Promise<EqProfile> => {
     const bands = [];
     for (let i = 0; i < caps.maxBands; i++) {
-      const p = await request('get', CMD.PEQ_PARAMS, Uint8Array.of(i));
+      const p = await get(CMD.PEQ_PARAMS, Uint8Array.of(i));
       if (p.length !== 8 || p[0] !== i) throw new ProtocolError(`Band reply does not match band ${i}`);
       bands.push(decodeBandPayload(p).band);
     }
-    const g = await request('get', CMD.GLOBAL_GAIN);
+    const g = await get(CMD.GLOBAL_GAIN);
     if (g.length < 2) throw new ProtocolError('Short preamp reply');
     return { preamp: decodeGain(g[0]!, g[1]!), bands };
   };
@@ -190,14 +196,10 @@ export async function connectFiio(device: HidLike, opts: ConnectOpts = {}): Prom
         guard(id, profile);
         await setActive(id);
         for (let i = 0; i < profile.bands.length; i++) {
-          const frame = setBand(i, profile.bands[i]!, nextSeq());
-          log?.('out', frame);
-          await transport.send(frame);
-          await sleep(timing.bandGapMs);
+          await set(CMD.PEQ_PARAMS, encodeBandPayload(i, profile.bands[i]!), timing.bandGapMs);
         }
-        await request('set', CMD.GLOBAL_GAIN, encodeGain(profile.preamp));
-        await sleep(timing.afterPreampMs);
-        await request('set', CMD.PEQ_SAVE, Uint8Array.of(id));
+        await set(CMD.GLOBAL_GAIN, encodeGain(profile.preamp), timing.afterPreampMs);
+        await set(CMD.PEQ_SAVE, Uint8Array.of(id), timing.afterSaveMs);
         const readBack = await readProfile();
         if (!profilesEqual(readBack, profile)) throw new WriteVerifyError(profile, readBack);
         return readBack;
