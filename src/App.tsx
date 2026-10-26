@@ -84,7 +84,7 @@ export function App() {
       <p className="message">Control your DAC&apos;s EQ from the browser. Close FiiO Control first, then connect.</p>
       {sharedLink?.ok && (
         <p className="message">
-          This link is the EQ &ldquo;{sharedLink.name}&rdquo;. Connect, and it will show on screen for you to write to a slot. Nothing is sent to the device until you confirm.
+          This link is the EQ &ldquo;{sharedLink.name}&rdquo;. Connect, and it will be previewed on screen and you choose which slot to write it to. Nothing is sent to the device until you confirm.
         </p>
       )}
       {sharedLink && !sharedLink.ok && <p className="message error">{sharedLink.errors[0]}</p>}

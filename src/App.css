@@ -196,6 +196,8 @@ h1.display { font-size: 1.75rem; }
 .notice-busy .stripes i { background: var(--oz-signal); }
 
 .help { background: var(--oz-surface); border: 1px solid var(--oz-line); padding: var(--oz-3) var(--oz-4); font-size: 1.0625rem; }
+.shared-preview { background: var(--oz-surface); border: 1px solid var(--oz-line); padding: var(--oz-3) var(--oz-4); font-size: 1.0625rem; display: flex; flex-direction: column; gap: var(--oz-2); }
+.shared-preview p { margin: 0; }
 .help ol { margin: var(--oz-2) 0 0; padding-left: var(--oz-6); display: flex; flex-direction: column; gap: var(--oz-1); }
 .actions { display: flex; flex-wrap: wrap; gap: var(--oz-6); align-items: flex-start; }
 .action-group { display: flex; flex-direction: column; gap: var(--oz-2); }
