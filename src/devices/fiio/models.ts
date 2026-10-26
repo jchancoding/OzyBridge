@@ -71,7 +71,6 @@ export const FIIO_MODELS: FiioModel[] = [
   },
   devicePeqModel(0x0104, 'FiiO KA15', -12, [7, 8, 9], 10),
   devicePeqModel(0x0126, 'SNOWSKY Melody', -12, [160, 161, 162], 240),
-  devicePeqModel(0x4016, 'FiiO Oak Nano', -24, [160], null),
 ];
 
 export function findFiioModel(vendorId: number, productId: number): FiioModel | undefined {

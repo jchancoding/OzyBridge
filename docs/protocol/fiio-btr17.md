@@ -179,4 +179,7 @@ Data comes from devicePEQ hardware captures. All are untested with OzyBridge.
 | --- | --- | --- | --- | --- |
 | FiiO KA15 | 0x0104 | -12..12 | 7, 8, 9 | 10 |
 | SNOWSKY Melody | 0x0126 | -12..12 | 160, 161, 162 | 240 |
-| FiiO Oak Nano | 0x4016 | -24..12 | 160 | none |
+
+Both captures report 10 bands and decode with our framing. Some models echo sets as `AA 0A` frames; these are not replies and are ignored.
+
+FiiO Oak Nano (0x4016) is held back: its capture reports 8 bands, a flat slot reads preamp +12 dB, and FiiO wrote 7 for a -5 dB preamp. That suggests a +12 dB preamp offset we do not model. Needs a probe from an owner.
