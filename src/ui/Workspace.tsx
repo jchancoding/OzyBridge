@@ -12,7 +12,7 @@ const NAMES_KEY = 'ozy-slot-names';
 const GAIN_STEPS = [-1, -0.5, 0.5, 1];
 
 type Notice =
-  | { kind: 'info' | 'ok' | 'error' | 'busy'; text: string }
+  | { kind: 'info' | 'ok' | 'error' | 'busy'; text: string; undo?: () => void }
   | { kind: 'confirm'; text: string; go: () => void }
   | null;
 
@@ -122,6 +122,7 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
   const [blocked, setBlocked] = useState<Record<string, boolean>>({});
   const [undoCount, setUndoCount] = useState(0);
   const [compareId, setCompareId] = useState<number | null>(null);
+  const [lastWrite, setLastWrite] = useState<{ id: number; profile: EqProfile; name: string } | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
   const lastOn = useRef<number>(userSlots[0]?.id ?? 0);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -146,11 +147,12 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
       return next;
     });
 
-  const run = useCallback(async (label: string, fn: () => Promise<string>) => {
+  const run = useCallback(async (label: string, fn: () => Promise<string | { text: string; undo: () => void }>) => {
     setBusy(true);
     setNotice({ kind: 'busy', text: label });
     try {
-      setNotice({ kind: 'ok', text: await fn() });
+      const r = await fn();
+      setNotice(typeof r === 'string' ? { kind: 'ok', text: r } : { kind: 'ok', text: r.text, undo: r.undo });
     } catch (e) {
       setNotice({ kind: 'error', text: e instanceof Error ? e.message : String(e) });
     } finally {
@@ -178,13 +180,20 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
     return () => clearTimeout(t);
   }, [notice]);
 
-  const writeProfile = (id: number, profile: EqProfile, extra = '', name = slotName(id)) =>
+  const writeProfile = (id: number, profile: EqProfile, extra = '', name = slotName(id), isUndo = false) =>
     run(`Writing slot ${index(id)} and verifying...`, async () => {
+      const before = profiles[id] ? { id, profile: profiles[id], name: slotName(id) } : null;
       const back = await adapter.writeSlot(id, profile);
       setProfiles((all) => ({ ...all, [id]: back }));
       updateNames((n) => renameSlot(n, product, id, back, name));
       if (id === selected) setDraft(null);
-      return `Slot ${Number(index(id))} saved and verified.${extra}`;
+      if (isUndo) {
+        setLastWrite(null);
+        return `Slot ${Number(index(id))} restored and verified.`;
+      }
+      setLastWrite(before);
+      const text = `Slot ${Number(index(id))} saved and verified.${extra}`;
+      return before ? { text, undo: () => void writeProfile(before.id, before.profile, '', before.name, true) } : text;
     });
 
   const requestWrite = (id: number, profile: EqProfile, extra = '', name = slotName(id)) => {
@@ -322,6 +331,7 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
                 <button className="btn-secondary" onClick={() => setNotice(null)}>Cancel</button>
               </>
             )}
+            {notice.kind === 'ok' && notice.undo && <button className="btn-secondary" disabled={busy} onClick={notice.undo}>Undo</button>}
             {notice.kind === 'error' && <button className="btn-secondary" onClick={() => setNotice(null)}>Dismiss</button>}
           </div>
         )}
@@ -401,6 +411,7 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
           <div className="bar">
             <button className="btn-primary" disabled={busy} onClick={() => fileRef.current?.click()}>Choose file (.txt / .xml)</button>
             <button className="btn-secondary" disabled={busy} onClick={() => void pasteButton()}>Paste from clipboard</button>
+            {lastWrite && <button className="btn-secondary" disabled={busy} onClick={() => void writeProfile(lastWrite.id, lastWrite.profile, '', lastWrite.name, true)}>Undo last write (slot {index(lastWrite.id)})</button>}
           </div>
         </section>
         <section className="action-group">
