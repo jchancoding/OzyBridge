@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<FiiO_DSP model="FIIO BTR17" version="0.0.1">
+  <module name="EQ">
+    <eqGroup>
+      <param name="masterGain">-6</param>
+      <eqList>
+        <eq index="0">
+          <param name="type">1</param>
+          <param name="freq">42</param>
+          <param name="gain">6</param>
+          <param name="q">0.87</param>
+        </eq>
+        <eq index="1">
+          <param name="type">0</param>
+          <param name="freq">207</param>
+          <param name="gain">-3.2</param>
+          <param name="q">0.54</param>
+        </eq>
+        <eq index="2">
+          <param name="type">0</param>
+          <param name="freq">817</param>
+          <param name="gain">2.5</param>
+          <param name="q">1.2</param>
+        </eq>
+        <eq index="3">
+          <param name="type">0</param>
+          <param name="freq">1893</param>
+          <param name="gain">-5.1</param>
+          <param name="q">2</param>
+        </eq>
+        <eq index="4">
+          <param name="type">0</param>
+          <param name="freq">3360</param>
+          <param name="gain">3.7</param>
+          <param name="q">1.2</param>
+        </eq>
+        <eq index="5">
+          <param name="type">2</param>
+          <param name="freq">5158</param>
+          <param name="gain">-3</param>
+          <param name="q">0.8</param>
+        </eq>
+        <eq index="6">
+          <param name="type">0</param>
+          <param name="freq">62</param>
+          <param name="gain">0</param>
+          <param name="q">1</param>
+        </eq>
+        <eq index="7">
+          <param name="type">0</param>
+          <param name="freq">125</param>
+          <param name="gain">0</param>
+          <param name="q">1</param>
+        </eq>
+        <eq index="8">
+          <param name="type">0</param>
+          <param name="freq">500</param>
+          <param name="gain">0</param>
+          <param name="q">1</param>
+        </eq>
+        <eq index="9">
+          <param name="type">0</param>
+          <param name="freq">8000</param>
+          <param name="gain">0</param>
+          <param name="q">1</param>
+        </eq>
+      </eqList>
+    </eqGroup>
+  </module>
+  <styleName>BA15 REVJET</styleName>
+  <description>TRN BA15 to Opus 5.5 neutral_revjet (BA). 6 active bands (others 0 dB), 20 Hz-8 kHz, inside corridor: no. JIJU REVJET tips, cup at 0 deg.</description>
+</FiiO_DSP>

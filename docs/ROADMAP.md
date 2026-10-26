@@ -63,9 +63,19 @@ Result (2026-10-26): done per `docs/agents/tasks/phase-2-scaffold.md`. Executor:
 - Biquad response math for the graph.
 - Constraint fitting to device limits (band count, gain, Q, frequency, filter types) with warnings and auto preamp.
 
+Result (2026-10-26): done per `docs/agents/tasks/phase-3a-formats.md` and `phase-3b-response-and-fit.md`. Executors: Sonnet 5.5 low, run in parallel; planner reviewed. 72 tests, typecheck passes.
+
+- Decisions made with the user. Imports are never altered to make them fit. A file with too many bands, out-of-range values or unsupported filter types is rejected, and every problem is listed in plain language. Fitting only rounds values to device precision (0.1 dB, Q 0.01, 1 Hz), pads unused bands, and sets the preamp.
+- Preamp: the file's value is kept unless the fitted curve would go above 0 dB. Then it is lowered and a note says so. It is never raised.
+- FiiO EQ files are FiiO's XML (`<FiiO_DSP>`). Import only; no FiiO XML exporter yet.
+- Fixtures: the A2000 AutoEQ file fits with its own -6.9 dB preamp (curve peak +4.2 dB). `BA15 REVJET.xml` peaks at +6.05 dB, so its -6 dB preamp is lowered to -6.1.
+- BTR17 limits live in tests for now. The real config belongs to the Phase 4 adapter.
+
 ### Phase 4: BTR17 adapter (executor model, planner reviews)
 
 Read slot list and bands, write slot with read-back verification, switch slot, bypass, preamp. Then the MVP non-PEQ controls.
+
+Pulled forward (2026-10-26): the pure frame encoder and decoder, `src/devices/fiio/protocol.ts`, per `docs/agents/tasks/phase-4a-fiio-encoder.md`. It matches all nine protocol doc vectors and allowlists commands, so `0x21` and the other forbidden commands throw. Replies with a bad CRC are flagged, not rejected. There is no device I/O yet.
 
 ### Phase 5: UI (executor model, style guide is the spec)
 

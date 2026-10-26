@@ -3,6 +3,20 @@ export interface EqBand { type: FilterType; freq: number; gain: number; q: numbe
 export interface EqProfile { preamp: number; bands: EqBand[] }
 export interface Range { min: number; max: number }
 
+export interface EqLimits {
+  maxBands: number; filterTypes: FilterType[];
+  gain: Range; preamp: Range; q: Range; freq: Range;
+  step: { gain: number; q: number; freq: number };
+  defaultFreqs?: number[];
+}
+
+// `message` is shown to the user as-is: plain language, says what to change.
+export interface EqIssue { message: string; line?: number; band?: number }
+
+export type ImportResult =
+  | { ok: true; profile: EqProfile; name: string | null; notes: string[] }
+  | { ok: false; errors: EqIssue[] };
+
 export function flatBand(freq: number): EqBand {
   return { type: 'PK', freq, gain: 0, q: 1, enabled: true };
 }
