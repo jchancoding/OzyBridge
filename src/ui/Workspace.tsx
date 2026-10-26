@@ -133,6 +133,7 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
   const lastOn = useRef<number>(userSlots[0]?.id ?? 0);
   const shared = useRef<ReturnType<typeof decodeShareFragment> | null>(location.hash ? decodeShareFragment(location.hash) : null);
   const [readDone, setReadDone] = useState(false);
+  const [pending, setPending] = useState<{ name: string; profile: EqProfile; extra: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const restoreRef = useRef<HTMLInputElement>(null);
 
@@ -214,17 +215,10 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
       setNotice({ kind: 'error', text: fit.errors.map((e) => e.message).join(' ') });
       return;
     }
-    const id = userSlots[0]?.id ?? selected;
-    setSelected(id);
-    setDraft(fit.profile);
-    setNotice({
-      kind: 'confirm',
-      text: `Shared EQ "${d.name}" is loaded below. It is not on the device yet.`,
-      yes: `Write to slot ${index(id)}`,
-      no: 'Not now',
-      danger: false,
-      go: () => requestWrite(id, fit.profile, fit.notes.length ? ` ${fit.notes.join(' ')}` : '', d.name),
-    });
+    const target = userSlots.find((s) => profiles[s.id] && isFlat(profiles[s.id] as EqProfile)) ?? userSlots[0];
+    if (target) setSelected(target.id);
+    setDraft(null);
+    setPending({ name: d.name, profile: fit.profile, extra: fit.notes.length ? ` ${fit.notes.join(' ')}` : '' });
     // Retries once the slot read has filled `profiles`. `shared` is cleared above so it runs once.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [readDone, profiles]);
@@ -240,6 +234,7 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
       const before = profiles[id] ? { id, profile: profiles[id], name: slotName(id) } : null;
       const back = await adapter.writeSlot(id, profile);
       setProfiles((all) => ({ ...all, [id]: back }));
+      if (!isUndo) setPending(null);
       updateNames((n) => renameSlot(n, product, id, back, name));
       if (id === selected) setDraft(null);
       if (isUndo) {
@@ -433,6 +428,28 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
         )}
       </div>
 
+      {pending && (
+        <section className="shared-preview">
+          <h2 className="section-title">Shared EQ &ldquo;{pending.name || 'Untitled'}&rdquo;</h2>
+          <EqGraph
+            profile={pending.profile}
+            label={pending.name || 'Shared EQ'}
+            compare={saved && !isFlat(saved) ? { profile: saved, label: slotName(selected) || `Slot ${sel}` } : undefined}
+          />
+          <div className="mono caption">
+            {pending.profile.bands.filter((b) => b.enabled && b.gain !== 0).length} bands &middot; {pending.profile.preamp.toFixed(1)} dB
+          </div>
+          <p>
+            This is a preview. It is not on the device yet. Click a slot below to choose where it goes (the slot&rsquo;s current EQ is shown as the comparison curve), then write it.
+            To test, press <strong>Activate</strong> on that slot. <strong>Undo</strong> restores the previous EQ.
+          </p>
+          <div className="bar">
+            <button className="btn-primary" disabled={busy || !allRead} onClick={() => requestWrite(selected, pending.profile, pending.extra, pending.name)}>Write to slot {sel}</button>
+            <button className="btn-secondary" onClick={() => setPending(null)}>Not now</button>
+          </div>
+        </section>
+      )}
+
       <section className="help">
         <h2 className="section-title">How to load an EQ</h2>
         <ol>
@@ -468,6 +485,7 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
                 />
                 {s.id === active && <span className="badge-active"><i />ACTIVE</span>}
                 {s.id === cmpId && <span className="badge-compare">COMPARE</span>}
+                {pending && s.id === selected && <span className="badge-compare">TARGET</span>}
               </div>
               {p ? <EqGraph profile={p} thumb /> : <div className="graph graph-thumb" />}
               <div className="mono caption">
