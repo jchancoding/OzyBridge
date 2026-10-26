@@ -1,8 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { EqBand } from '../../core/eq';
 import type { HidLike } from '../../transport/webhid';
-import capture from './__fixtures__/walkplay_default_moondrop_marigold.json';
+import marigold from './__fixtures__/walkplay_default_moondrop_marigold.json';
+import schemeno15Ddhifi from './__fixtures__/walkplay_schemeno15_ddhifi_dsp_cable.json';
+import schemeno15Stargate from './__fixtures__/walkplay_schemeno15_tanchjim_stargate_ii.json';
+import schemeno16ProtocolMax from './__fixtures__/walkplay_schemeno16_protocol_max.json';
+import schemeno16Tp35 from './__fixtures__/walkplay_schemeno16_tp35_pro.json';
+import schemeno16SpacePro from './__fixtures__/walkplay_schemeno16_tanchjim_space_pro.json';
+import schemeno18Octave from './__fixtures__/walkplay_schemeno18_nicehck_octave.json';
 import { CUSTOM_SLOT_ID, ReadOnlyDeviceError, connectWalkplay } from './adapter';
-import { REPORT_ID } from './protocol';
+import { decodePeqBand, REPORT_ID } from './protocol';
 
 interface CaptureExchange {
   send: { reportId: number; data: number[] };
@@ -10,21 +17,79 @@ interface CaptureExchange {
   description?: string;
 }
 
-const READ_EXCHANGES = (capture as { exchanges: CaptureExchange[] }).exchanges.filter(
-  (e) => e.description !== undefined && !e.description.startsWith('Write'),
-);
+interface CaptureFile {
+  device: { vendorId: number; productId: number; productName: string };
+  exchanges: CaptureExchange[];
+}
+
+const CAPTURE_CASES: CaptureFile[] = [
+  marigold as CaptureFile,
+  schemeno15Ddhifi as CaptureFile,
+  schemeno15Stargate as CaptureFile,
+  schemeno16ProtocolMax as CaptureFile,
+  schemeno16Tp35 as CaptureFile,
+  schemeno16SpacePro as CaptureFile,
+  schemeno18Octave as CaptureFile,
+];
+
+function isReadExchange(e: CaptureExchange): boolean {
+  if (e.description?.startsWith('Write')) return false;
+  if (e.send.data[0] === 0x01) return false;
+  return e.send.data[0] === 0x80;
+}
+
+function readExchanges(capture: CaptureFile): CaptureExchange[] {
+  return capture.exchanges.filter(isReadExchange);
+}
+
+function isPeqBandRead(send: number[]): boolean {
+  return (
+    send.length === 6 &&
+    send[0] === 0x80 &&
+    send[1] === 0x09 &&
+    send[2] === 0x00 &&
+    send[3] === 0x00 &&
+    send[5] === 0x00
+  );
+}
+
+function peqBandExchanges(capture: CaptureFile): CaptureExchange[] {
+  const seen = new Set<number>();
+  const out: CaptureExchange[] = [];
+  for (const e of capture.exchanges) {
+    if (!isPeqBandRead(e.send.data)) continue;
+    const i = e.send.data[4]!;
+    if (seen.has(i)) continue;
+    seen.add(i);
+    out.push(e);
+  }
+  return out.sort((a, b) => a.send.data[4]! - b.send.data[4]!);
+}
+
+function expectedBands(capture: CaptureFile): EqBand[] {
+  return peqBandExchanges(capture).map((e) => decodePeqBand(Uint8Array.from(e.responses[0]!.data)));
+}
 
 class FakeWalkplayHid {
   opened = false;
-  vendorId = 0x35d8;
-  productId = 0x011c;
-  productName = 'MOONDROP Marigold';
+  vendorId: number;
+  productId: number;
+  productName: string;
+  private readonly readExchanges: CaptureExchange[];
+
   collections = [
     { outputReports: [{ reportId: REPORT_ID, items: [{ reportSize: 8, reportCount: 64 }] }] },
   ] as unknown as HIDCollectionInfo[];
 
   sent: Uint8Array[] = [];
   private handlers = new Set<(e: Event) => void>();
+
+  constructor(capture: CaptureFile) {
+    this.vendorId = capture.device.vendorId;
+    this.productId = capture.device.productId;
+    this.productName = capture.device.productName;
+    this.readExchanges = readExchanges(capture);
+  }
 
   open = async () => {
     this.opened = true;
@@ -41,7 +106,7 @@ class FakeWalkplayHid {
 
   sendReport = async (_id: number, data: BufferSource) => {
     const frame = new Uint8Array(data as ArrayBuffer);
-    const ex = READ_EXCHANGES
+    const ex = this.readExchanges
       .filter((e) => e.send.data.every((b, i) => frame[i] === b))
       .sort((a, b) => b.send.data.length - a.send.data.length)[0];
     if (!ex) throw new Error(`unexpected send ${[...frame.subarray(0, 8)].join(',')}`);
@@ -59,49 +124,42 @@ class FakeWalkplayHid {
   }
 }
 
-const EXPECTED_BANDS = [
-  { type: 'PK', freq: 25, gain: 0, q: 0.5, enabled: true },
-  { type: 'PK', freq: 150, gain: 0, q: 3, enabled: true },
-  { type: 'PK', freq: 778, gain: 0, q: 7.2, enabled: true },
-  { type: 'PK', freq: 1100, gain: 0, q: 1.6, enabled: true },
-  { type: 'PK', freq: 2100, gain: 0, q: 0.8, enabled: true },
-  { type: 'PK', freq: 8600, gain: 0, q: 0.4, enabled: true },
-  { type: 'PK', freq: 10000, gain: 0, q: 1.2, enabled: true },
-  { type: 'PK', freq: 10630, gain: 0, q: 7, enabled: true },
-] as const;
-
 const tol = { gain: 0.01, freq: 0.5, q: 0.01 };
+
+function expectBandClose(actual: EqBand, expected: EqBand): void {
+  expect(actual.type).toBe(expected.type);
+  expect(actual.enabled).toBe(expected.enabled);
+  expect(Math.abs(actual.freq - expected.freq)).toBeLessThanOrEqual(tol.freq);
+  expect(Math.abs(actual.gain - expected.gain)).toBeLessThanOrEqual(tol.gain);
+  expect(Math.abs(actual.q - expected.q)).toBeLessThanOrEqual(tol.q);
+}
 
 afterEach(() => vi.useRealTimers());
 
 describe('connectWalkplay', () => {
-  it('replays the Marigold read capture', async () => {
-    const f = new FakeWalkplayHid();
+  it.each(CAPTURE_CASES)('$device.productName capture replay', async (capture) => {
+    const expected = expectedBands(capture);
+    const f = new FakeWalkplayHid(capture);
     const a = await connectWalkplay(f.asHid(), { hid: new EventTarget() });
-    expect(a.info.firmware).toBe('0.1');
+    expect(a.info.productName).toBe(capture.device.productName);
     expect(await a.getActiveSlot()).toBe(CUSTOM_SLOT_ID);
     const p = await a.readActiveProfile();
     expect(p.preamp).toBe(0);
-    p.bands.forEach((b, i) => {
-      const e = EXPECTED_BANDS[i]!;
-      expect(b.type).toBe(e.type);
-      expect(b.enabled).toBe(e.enabled);
-      expect(Math.abs(b.freq - e.freq)).toBeLessThanOrEqual(tol.freq);
-      expect(Math.abs(b.gain - e.gain)).toBeLessThanOrEqual(tol.gain);
-      expect(Math.abs(b.q - e.q)).toBeLessThanOrEqual(tol.q);
-    });
-    expect(f.sent.length).toBe(10);
+    expect(p.bands).toHaveLength(expected.length);
+    p.bands.forEach((b, i) => expectBandClose(b, expected[i]!));
+    const bandReads = peqBandExchanges(capture).length;
+    expect(f.sent.length).toBe(2 + bandReads);
   });
 
-  it('readSlot(101) matches readActiveProfile', async () => {
-    const f = new FakeWalkplayHid();
+  it('readSlot(101) matches readActiveProfile (Marigold)', async () => {
+    const f = new FakeWalkplayHid(marigold as CaptureFile);
     const a = await connectWalkplay(f.asHid(), { hid: new EventTarget() });
     const slot = await a.readSlot(101);
     expect(slot.bands[3]!.freq).toBeCloseTo(1100, 0);
   });
 
   it('rejects writes without sending', async () => {
-    const f = new FakeWalkplayHid();
+    const f = new FakeWalkplayHid(marigold as CaptureFile);
     const a = await connectWalkplay(f.asHid(), { hid: new EventTarget() });
     const before = f.sent.length;
     await expect(a.setActiveSlot(101)).rejects.toBeInstanceOf(ReadOnlyDeviceError);

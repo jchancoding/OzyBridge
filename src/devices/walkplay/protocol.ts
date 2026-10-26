@@ -1,4 +1,5 @@
 import type { EqBand, FilterType } from '../../core/eq';
+import { ProtocolError } from '../types';
 
 export const REPORT_ID = 0x4b;
 export const READ = 0x80;
@@ -90,11 +91,11 @@ function wireTypeToFilter(byte: number): FilterType {
     case 3:
       return 'HSC';
     default:
-      return 'PK';
+      throw new ProtocolError(`Unsupported WalkPlay filter type byte 0x${byte.toString(16)}`);
   }
 }
 
-/** Scheme 10 pull path: no frequency or Q compensation. */
+/** Schemes 10, 15, 16, 18 pull path: no frequency or Q compensation. */
 export function decodePeqBand(reply: Uint8Array): EqBand {
   if (!matchReply(reply, CMD.PEQ_VALUES)) throw new Error('Not a PEQ reply');
   if (reply.length < 34) throw new Error('PEQ reply too short');
