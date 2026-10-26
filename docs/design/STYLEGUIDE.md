@@ -139,6 +139,7 @@ Scale (rem): `0.75` label, `0.875` body small, `1` body, `1.25` section, `1.75` 
 - Easing: `cubic-bezier(0.2, 0, 0, 1)`. No spring, no bounce, no overshoot.
 - Screen transitions slide horizontally a short distance with a fade, like a menu change in WipeOut Pure.
 - Respect `prefers-reduced-motion`: replace slides with fades, disable stripe animation.
+- Hover moments (`src/ui/motion.css`): one accent glint sweep across slot cards and the primary button, slot chamfer edge turns accent; boot stagger of HUD and slots on connect (30 ms apart); one scan sweep across the graph after a verified write. All off under `prefers-reduced-motion` except the chamfer colour.
 - Ambient motion (grid drift, scanlines, mascot) stops under `prefers-reduced-motion` or when the footer Motion toggle is OFF (`data-motion='off'`, stored as `ozy-motion`).
 
 ## Iconography

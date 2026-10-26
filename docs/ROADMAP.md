@@ -77,6 +77,16 @@ Brainstorm first, then a written spec, then build. Within `docs/design/STYLEGUID
 
 Workflow tips gathered from r/ClaudeAI: give the model a reference screenshot and the token file, change one design dimension at a time (type, colour, motion), and for the mascot use a code-first pixel workflow (e.g. claude-pxl, sprite-forge) rather than image generation.
 
+Phase 8 (closed 2026-10-27, PRs #13, #15-#20, 254 tests). Direction "Mirage", spec in `docs/design/phase-8-spec.md`, task specs in `docs/agents/tasks/phase-8*.md`.
+
+- Dark "desert night" theme following the OS, footer THEME toggle (`ozy-theme`), set before paint. Light theme fixed for WCAG AA (accent, text-3, drop, ok, danger, warn, accent-strong, line-strong). Hard-coded colours replaced by semantic tokens. `src/ui/contrast.test.ts` enforces the text, graph-curve, drop and glass pairs for both themes.
+- Glass on the sticky chrome only, with solid fallbacks; a faint perspective-grid floor (plus scanlines in dark); footer MOTION toggle (`ozy-motion`) that stops all ambient motion.
+- Hover glints, boot stagger on connect, scan sweep after a verified write.
+- Ozy, the hooded wanderer: 24x24 rect SVG, 5 colours, 9 frames from one anchor, a 64 s CSS-only walk / sit / tea / gaze loop behind all content.
+- Build grew 17.5 kB minified (budget 20 kB). No new dependencies, fonts or network calls. `src/core/`, `src/devices/`, `src/transport/` untouched.
+- Skipped: 8e skins. Still open: hover, stagger and sweep not yet seen with a device connected; BTR17 smoke test (connect, write one slot, drop a file) in both themes.
+- Lessons: executors cannot judge visuals. The planner had to redraw the sit, tea and gaze frames, move Ozy out of the animated `<main>` (its transform made `<main>` his fixed containing block), and swap solid text backgrounds for a halo (they boxed in the grid). Render frames and screenshot each wave before merging. Vitest returns '' for `?raw` CSS, so tests read files with `node:fs`. Other chats use the main checkout too; the planner verifies merged work in a detached worktree from `origin/main`, not by pulling there.
+
 ## Backlog (not scheduled)
 
 - Squiglink integration: open the current EQ in Squiglink, or overlay a headphone's measured response (read-only, user-initiated, no runtime network by default).
