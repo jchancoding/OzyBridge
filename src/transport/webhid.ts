@@ -1,0 +1,192 @@
+export function isWebHidSupported(): boolean {
+  return typeof navigator !== 'undefined' && !!(navigator as Navigator & { hid?: unknown }).hid;
+}
+
+export type HidLike = Pick<
+  HIDDevice,
+  | 'opened'
+  | 'open'
+  | 'close'
+  | 'sendReport'
+  | 'addEventListener'
+  | 'removeEventListener'
+  | 'collections'
+  | 'productName'
+  | 'vendorId'
+  | 'productId'
+>;
+
+export class TransportTimeoutError extends Error {
+  constructor(message = 'Device did not reply in time') {
+    super(message);
+    this.name = 'TransportTimeoutError';
+  }
+}
+
+export class TransportClosedError extends Error {
+  constructor(message = 'Transport closed') {
+    super(message);
+    this.name = 'TransportClosedError';
+  }
+}
+
+interface Op {
+  run: () => Promise<unknown>;
+  resolve: (v: unknown) => void;
+  reject: (e: unknown) => void;
+}
+
+export class HidTransport {
+  private readonly reportId: number;
+  private readonly minGapMs: number;
+  private readonly timeoutMs: number;
+  private outputLength: number | null = null;
+  private queue: Op[] = [];
+  private running = false;
+  private closed = false;
+  private lastEnd: number | null = null;
+  private gapTimer: ReturnType<typeof setTimeout> | undefined;
+  private cancelActive: ((e: unknown) => void) | null = null;
+  private listeners = new Set<(data: Uint8Array) => void>();
+
+  constructor(
+    private readonly device: HidLike,
+    opts: { reportId: number; minGapMs?: number; timeoutMs?: number },
+  ) {
+    this.reportId = opts.reportId;
+    this.minGapMs = opts.minGapMs ?? 0;
+    this.timeoutMs = opts.timeoutMs ?? 1000;
+  }
+
+  private readonly onInputReport = (event: Event) => {
+    const e = event as HIDInputReportEvent;
+    if (e.reportId !== this.reportId) return;
+    const data = new Uint8Array(e.data.buffer, e.data.byteOffset, e.data.byteLength).slice();
+    for (const l of [...this.listeners]) l(data);
+  };
+
+  async open(): Promise<void> {
+    if (!this.device.opened) await this.device.open();
+    this.outputLength = this.findOutputLength();
+    this.closed = false;
+    this.device.removeEventListener('inputreport', this.onInputReport);
+    this.device.addEventListener('inputreport', this.onInputReport);
+  }
+
+  private findOutputLength(): number {
+    for (const c of this.device.collections) {
+      for (const r of c.outputReports ?? []) {
+        if (r.reportId === this.reportId) {
+          let bits = 0;
+          for (const item of r.items ?? []) bits += (item.reportSize ?? 0) * (item.reportCount ?? 0);
+          return bits / 8;
+        }
+      }
+    }
+    throw new Error(`Output report ${this.reportId} not found on device`);
+  }
+
+  send(bytes: Uint8Array): Promise<void> {
+    return this.enqueue(() => this.doSend(bytes));
+  }
+
+  request(bytes: Uint8Array, match: (reply: Uint8Array) => boolean): Promise<Uint8Array> {
+    return this.enqueue(
+      () =>
+        new Promise<Uint8Array>((resolve, reject) => {
+          let timer: ReturnType<typeof setTimeout> | undefined;
+          const finish = () => {
+            clearTimeout(timer);
+            this.listeners.delete(listener);
+            this.cancelActive = null;
+          };
+          const listener = (data: Uint8Array) => {
+            if (!match(data)) return;
+            finish();
+            resolve(data);
+          };
+          this.cancelActive = (e) => {
+            finish();
+            reject(e);
+          };
+          this.listeners.add(listener);
+          timer = setTimeout(() => {
+            finish();
+            reject(new TransportTimeoutError());
+          }, this.timeoutMs);
+          this.doSend(bytes).catch((e) => {
+            finish();
+            reject(e);
+          });
+        }),
+    );
+  }
+
+  private async doSend(bytes: Uint8Array): Promise<void> {
+    if (this.outputLength === null) throw new Error('Transport not open');
+    if (bytes.length > this.outputLength) {
+      throw new Error(`Frame is ${bytes.length} bytes, output report holds ${this.outputLength}`);
+    }
+    const padded = new Uint8Array(this.outputLength);
+    padded.set(bytes);
+    await this.device.sendReport(this.reportId, padded);
+  }
+
+  private enqueue<T>(run: () => Promise<T>): Promise<T> {
+    if (this.closed) return Promise.reject(new TransportClosedError());
+    return new Promise<T>((resolve, reject) => {
+      this.queue.push({ run, resolve: resolve as (v: unknown) => void, reject });
+      this.pump();
+    });
+  }
+
+  private pump(): void {
+    if (this.running || this.closed) return;
+    const op = this.queue.shift();
+    if (!op) return;
+    this.running = true;
+    const start = () => {
+      this.gapTimer = undefined;
+      this.gapOp = null;
+      if (this.closed) return;
+      op.run().then(op.resolve, op.reject).finally(() => {
+        this.lastEnd = Date.now();
+        this.running = false;
+        this.pump();
+      });
+    };
+    const wait = this.lastEnd === null ? 0 : this.lastEnd + this.minGapMs - Date.now();
+    if (wait > 0) {
+      this.gapTimer = setTimeout(start, wait);
+      this.gapOp = op;
+    } else start();
+  }
+
+  private gapOp: Op | null = null;
+
+  async close(): Promise<void> {
+    this.closed = true;
+    const err = new TransportClosedError();
+    clearTimeout(this.gapTimer);
+    this.gapTimer = undefined;
+    if (this.gapOp) {
+      this.gapOp.reject(err);
+      this.gapOp = null;
+    }
+    this.cancelActive?.(err);
+    for (const op of this.queue) op.reject(err);
+    this.queue = [];
+    this.device.removeEventListener('inputreport', this.onInputReport);
+    await this.device.close();
+  }
+}
+
+export async function requestFiioDevice(): Promise<HIDDevice | null> {
+  const devices = await navigator.hid.requestDevice({ filters: [{ vendorId: 0x2972 }] });
+  return devices[0] ?? null;
+}
+
+export async function getGrantedFiioDevices(): Promise<HIDDevice[]> {
+  const devices = await navigator.hid.getDevices();
+  return devices.filter((d) => d.vendorId === 0x2972);
+}

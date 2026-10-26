@@ -6,7 +6,15 @@ A login-free web control center for USB DACs and amps. First target: FiiO BTR17.
 - Named EQ slots you can actually recognise.
 - Runs entirely in the browser over WebHID (Chrome or Edge). No account, no backend.
 
-Status: planning. See `docs/ROADMAP.md`.
+Status: Phase 2 scaffold. See `docs/ROADMAP.md`.
+
+## Develop
+
+- `npm run dev`: start the Vite dev server
+- `npm test`: run unit tests (Vitest)
+- `npm run typecheck`: TypeScript check
+- `npm run build`: typecheck and production build
+- `npm run preview`: serve the production build
 
 Docs:
 

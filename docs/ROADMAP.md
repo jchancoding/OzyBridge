@@ -54,6 +54,8 @@ Result (2026-10-26, steps 1, 3, 4 done statically):
 
 Vite + React + TS strict, Vitest, tokens CSS from the style guide, folder layout from `AGENTS.md`, `DeviceAdapter` interface, WebHID transport with request/response matching and pacing.
 
+Result (2026-10-26): done per `docs/agents/tasks/phase-2-scaffold.md`. Executor: Sonnet 5.5 low; planner reviewed. 15 tests, typecheck and build pass. Toolchain: TypeScript 7, Vite 8, Vitest 5, React 19. Fonts deferred to Phase 5 (need approval for self-hosted font files). Transport is tested only against a fake device.
+
 ### Phase 3: Core EQ (executor model, test-first)
 
 - AutoEQ / Squiglink text parser and exporter (`Preamp:` line, `PK`, `LSC`, `HSC`), round-trip tests.

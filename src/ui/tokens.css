@@ -1,0 +1,46 @@
+:root {
+  --oz-bg: #F4F6F8;
+  --oz-surface: #FFFFFF;
+  --oz-surface-2: #E9EDF1;
+  --oz-line: #C9D1D9;
+  --oz-line-strong: #8C98A4;
+  --oz-text: #101820;
+  --oz-text-2: #4A5563;
+  --oz-text-3: #7D8794;
+  --oz-accent: #00A6E0;
+  --oz-accent-strong: #0077B6;
+  --oz-accent-wash: #DFF4FC;
+  --oz-signal: #FF5A1F;
+  --oz-warn: #FFB800;
+  --oz-danger: #E5254B;
+  --oz-ok: #14B87A;
+  --oz-curve-2: #B34DFF;
+
+  --oz-1: 4px;
+  --oz-2: 8px;
+  --oz-3: 12px;
+  --oz-4: 16px;
+  --oz-6: 24px;
+  --oz-8: 32px;
+  --oz-12: 48px;
+
+  --oz-radius: 0;
+  --oz-chamfer: 8px;
+
+  --oz-fast: 120ms;
+  --oz-base: 200ms;
+  --oz-slow: 320ms;
+  --oz-ease: cubic-bezier(0.2, 0, 0, 1);
+
+  --oz-font-display: 'Michroma', 'Inter', system-ui, sans-serif;
+  --oz-font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --oz-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --oz-fast: 1ms;
+    --oz-base: 1ms;
+    --oz-slow: 1ms;
+  }
+}
