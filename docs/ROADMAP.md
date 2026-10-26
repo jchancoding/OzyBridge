@@ -4,7 +4,8 @@
 
 A static web app that fully controls a FiiO BTR17 with no login and no FiiO account:
 
-- Import and export AutoEQ / Squiglink parametric EQ text directly. No FiiO format conversion.
+- Import and export Squiglink / AutoEQ parametric EQ text directly, and FiiO's own EQ file (`.xml`) for moving presets to and from FiiO Control.
+- OzyControl is a transfer tool, not an EQ designer. Users build EQs in Squiglink, PeqDB Studio or AutoEQ and bring them here.
 - Manage the 10 user EQ slots with real names visible at a glance.
 - Expose the device's other settings that FiiO Control exposes.
 - Be built so other FiiO models, and later other vendors, are config or adapter additions.
@@ -77,9 +78,18 @@ Read slot list and bands, write slot with read-back verification, switch slot, b
 
 Pulled forward (2026-10-26): the pure frame encoder and decoder, `src/devices/fiio/protocol.ts`, per `docs/agents/tasks/phase-4a-fiio-encoder.md`. It matches all nine protocol doc vectors and allowlists commands, so `0x21` and the other forbidden commands throw. Replies with a bad CRC are flagged, not rejected. There is no device I/O yet.
 
+Progress (2026-10-26): 4b adapter and 4c format exports done per `docs/agents/tasks/phase-4b-btr17-adapter.md` and `phase-4c-format-exports.md`. Executors: Sonnet 5.5 low, in parallel; planner reviewed. 103 tests, typecheck and build pass.
+
+- `connectFiio` checks the band count on connect and refuses on a mismatch. Writes check limits before sending anything, follow FiiO's sequence, save with `0x19`, then read back and reject on a mismatch. `readSlot` restores the previously active slot. EQ off is `setActiveSlot(240)`. The BTR17 is a config entry in `src/devices/fiio/models.ts`.
+- Squiglink's export format is the same as AutoEQ's (checked in squig.link's `graphtool.js`). Two-channel Squiglink files (`Channel: L/R`) are rejected with a plain message. `exportAutoEq` can omit flat bands. `exportFiioXml` reproduces FiiO's file layout byte for byte.
+- Remaining: 4d bench check on the real BTR17 (read-only, then one band on USER10, then a full write, then restore), timing tuning, and answering protocol open questions 1 to 3. Also check that FiiO Control accepts our exported `.xml`.
+
 ### Phase 5: UI (executor model, style guide is the spec)
 
-Connect screen, slot grid (10 named slots), EQ editor with graph, import/export, device settings panel.
+Connect screen, slot grid (10 named slots), EQ view with graph, import/export, device settings panel.
+
+- Import/export: one button pair per format. "Squiglink / AutoEQ (.txt)" and "FiiO (.xml)". Squiglink and AutoEQ share one text format, so they share a button. Text export omits flat bands (Squiglink does the same). FiiO export writes all device bands.
+- EQ view is barebones (decided 2026-10-26): response graph plus a band table with plain numeric fields for small tweaks (gain, frequency, Q, type, preamp). No draggable graph handles, no headphone measurements, no target curves, no auto-EQ. Those live in Squiglink and PeqDB Studio.
 Slot names live in browser storage keyed by product name, plus JSON backup/restore. If the device turns out to store names, write them to the device too. On connect, match device bands to known profiles so names survive changes made elsewhere.
 
 ### Phase 6: Hardening and release

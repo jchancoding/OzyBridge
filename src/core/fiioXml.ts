@@ -1,4 +1,4 @@
-import type { EqBand, EqIssue, FilterType, ImportResult } from './eq';
+import type { EqBand, EqIssue, EqProfile, FilterType, ImportResult } from './eq';
 
 const TYPES: Record<number, FilterType> = { 0: 'PK', 1: 'LSC', 2: 'HSC' };
 
@@ -116,4 +116,47 @@ export function parseFiioXml(text: string): ImportResult & { model?: string } {
   const result: ImportResult & { model?: string } = { ok: true, profile: { preamp, bands }, name, notes: [] };
   if (model !== undefined) result.model = model;
   return result;
+}
+
+const TYPE_CODES: Record<FilterType, number> = { PK: 0, LSC: 1, HSC: 2 };
+
+function esc(s: string): string {
+  return s.replace(/[&<>"']/g, (c) =>
+    c === '&' ? '&amp;' : c === '<' ? '&lt;' : c === '>' ? '&gt;' : c === '"' ? '&quot;' : '&apos;',
+  );
+}
+
+function fmt(v: number, d: number): string {
+  const s = String(Number(v.toFixed(d)));
+  return s === '-0' ? '0' : s;
+}
+
+export function exportFiioXml(
+  profile: EqProfile,
+  opts: { model: string; name?: string; description?: string },
+): string {
+  const p = (name: string, value: string, pad: string): string => `${pad}<param name="${name}">${value}</param>`;
+  const out = [
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+    `<FiiO_DSP model="${esc(opts.model)}" version="0.0.1">`,
+    '  <module name="EQ">',
+    '    <eqGroup>',
+    p('masterGain', fmt(profile.preamp, 2), '      '),
+    '      <eqList>',
+  ];
+  profile.bands.forEach((b, i) => {
+    out.push(
+      `        <eq index="${i}">`,
+      p('type', String(TYPE_CODES[b.type]), '          '),
+      p('freq', fmt(b.freq, 0), '          '),
+      p('gain', b.enabled ? fmt(b.gain, 2) : '0', '          '),
+      p('q', fmt(b.q, 2), '          '),
+      '        </eq>',
+    );
+  });
+  out.push('      </eqList>', '    </eqGroup>', '  </module>');
+  if (opts.name !== undefined) out.push(`  <styleName>${esc(opts.name)}</styleName>`);
+  if (opts.description !== undefined) out.push(`  <description>${esc(opts.description)}</description>`);
+  out.push('</FiiO_DSP>');
+  return out.join('\n');
 }

@@ -138,3 +138,45 @@ describe('parseAutoEq', () => {
     expect(e.map((x) => x.line)).toEqual([3, 4, 5, 6]);
   });
 });
+
+describe('Squiglink', () => {
+  it('rejects two-channel files', () => {
+    const t = ['Channel: L', 'Preamp: -1 dB', 'Filter 1: ON PK Fc 100 Hz Gain 1 dB Q 1', 'Filter 2: ON PK Fc 200 Hz Gain 1 dB Q 1',
+      'Channel: R', 'Preamp: -1 dB', 'Filter 1: ON PK Fc 100 Hz Gain 1 dB Q 1', 'Filter 2: ON PK Fc 200 Hz Gain 1 dB Q 1'].join('\n');
+    expect(errs(t)).toEqual([{
+      line: 1,
+      message: 'This file has separate EQ for the left and right channels. OzyControl applies one EQ to both channels. Turn off two-channel EQ in Squiglink and export again.',
+    }]);
+  });
+
+  it('parses one-channel CRLF output', () => {
+    const t = ['Preamp: -3.1234 dB', 'Filter 1: ON LSC Fc 105 Hz Gain 4.5000 dB Q 0.7000', 'Filter 2: ON HSC Fc 8000 Hz Gain -2.2500 dB Q 0.5000', ''].join('\r\n');
+    const r = ok(t);
+    expect(r.profile.preamp).toBe(-3.1234);
+    expect(r.profile.bands).toEqual([
+      { type: 'LSC', freq: 105, gain: 4.5, q: 0.7, enabled: true },
+      { type: 'HSC', freq: 8000, gain: -2.25, q: 0.5, enabled: true },
+    ]);
+  });
+});
+
+describe('exportAutoEq omitFlat', () => {
+  const p: EqProfile = {
+    preamp: -1,
+    bands: [
+      { type: 'PK', freq: 100, gain: 0, q: 1, enabled: true },
+      { type: 'PK', freq: 200, gain: 2, q: 1, enabled: true },
+      { type: 'PK', freq: 300, gain: 3, q: 1, enabled: false },
+      { type: 'HSC', freq: 400, gain: -1, q: 1, enabled: true },
+    ],
+  };
+  it('drops flat and disabled bands and renumbers', () => {
+    const lines = exportAutoEq(p, { omitFlat: true }).trim().split('\n');
+    expect(lines).toHaveLength(3);
+    expect(lines[1]).toMatch(/^Filter 1: ON PK Fc 200 /);
+    expect(lines[2]).toMatch(/^Filter 2: ON HSC Fc 400 /);
+  });
+  it('keeps them by default', () => {
+    expect(exportAutoEq(p).trim().split('\n')).toHaveLength(5);
+  });
+});

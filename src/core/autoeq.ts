@@ -39,6 +39,19 @@ export function parseAutoEq(text: string): ImportResult {
   let enabledCount = 0;
 
   const lines = text.split(/\r\n|\r|\n/);
+  const chIdx = lines.findIndex((l) => /^\s*channel\s*:/i.test(l));
+  if (chIdx >= 0) {
+    return {
+      ok: false,
+      errors: [
+        {
+          line: chIdx + 1,
+          message:
+            'This file has separate EQ for the left and right channels. OzyControl applies one EQ to both channels. Turn off two-channel EQ in Squiglink and export again.',
+        },
+      ],
+    };
+  }
   lines.forEach((raw, i) => {
     const n = i + 1;
     const line = raw.trim();
@@ -156,9 +169,12 @@ export function parseAutoEq(text: string): ImportResult {
 
 const fmt = (v: number, d: number): string => String(Number(v.toFixed(d)));
 
-export function exportAutoEq(profile: EqProfile): string {
+export function exportAutoEq(profile: EqProfile, opts?: { omitFlat?: boolean }): string {
   const out = [`Preamp: ${fmt(profile.preamp, 2)} dB`];
-  profile.bands.forEach((b, i) => {
+  const bands = opts?.omitFlat
+    ? profile.bands.filter((b) => b.enabled && Number(b.gain.toFixed(2)) !== 0)
+    : profile.bands;
+  bands.forEach((b, i) => {
     out.push(
       `Filter ${i + 1}: ${b.enabled ? 'ON' : 'OFF'} ${b.type} Fc ${fmt(b.freq, 1)} Hz Gain ${fmt(b.gain, 2)} dB Q ${fmt(b.q, 3)}`,
     );

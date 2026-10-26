@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import ba15 from './__fixtures__/BA15 REVJET.xml?raw';
-import { parseFiioXml } from './fiioXml';
+import { exportFiioXml, parseFiioXml } from './fiioXml';
+import type { EqProfile } from './eq';
 
 function band(i: number, type: string, extra = '') {
   return `<eq index="${i}"><param name="type">${type}</param><param name="freq">100</param><param name="gain">1</param>${extra === 'noq' ? '' : '<param name="q">1</param>'}</eq>`;
@@ -70,5 +71,39 @@ describe('parseFiioXml', () => {
       if (!r.ok) throw new Error('failed');
       expect(r.name).toBeNull();
     }
+  });
+});
+
+describe('exportFiioXml', () => {
+  it('reproduces the fixture byte for byte', () => {
+    const r = parseFiioXml(ba15);
+    if (!r.ok) throw new Error('failed');
+    const desc = /<description>([^<]*)<\/description>/.exec(ba15)![1]!;
+    expect(exportFiioXml(r.profile, { model: r.model!, name: r.name!, description: desc })).toBe(ba15);
+  });
+
+  it('round trips all types, negative preamp and a disabled band', () => {
+    const p: EqProfile = {
+      preamp: -4.5,
+      bands: [
+        { type: 'LSC', freq: 42, gain: 6, q: 0.87, enabled: true },
+        { type: 'PK', freq: 1000, gain: -3.2, q: 1.2, enabled: true },
+        { type: 'HSC', freq: 8000, gain: 2, q: 0.7, enabled: false },
+      ],
+    };
+    const r = parseFiioXml(exportFiioXml(p, { model: 'FIIO BTR17' }));
+    if (!r.ok) throw new Error('failed');
+    expect(r.profile.preamp).toBe(-4.5);
+    expect(r.profile.bands).toEqual([...p.bands.slice(0, 2), { ...p.bands[2]!, gain: 0, enabled: true }]);
+  });
+
+  it('escapes special characters', () => {
+    const name = `A&B <x> "q" 'z'`;
+    const r = parseFiioXml(
+      exportFiioXml({ preamp: 0, bands: [{ type: 'PK', freq: 100, gain: 1, q: 1, enabled: true }] }, { model: 'M&', name }),
+    );
+    if (!r.ok) throw new Error('failed');
+    expect(r.name).toBe(name);
+    expect(r.model).toBe('M&');
   });
 });
