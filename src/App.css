@@ -117,6 +117,13 @@ body {
 .graph-zero { stroke: var(--oz-text-2); stroke-width: 1.75; }
 .graph-clip { fill: var(--oz-danger); opacity: 0.08; }
 .graph-curve { fill: none; stroke: var(--oz-accent); stroke-width: 2.5; }
+.graph-curve-2 { fill: none; stroke: var(--oz-curve-2); stroke-width: 2.5; stroke-dasharray: 8 5; }
+.graph-legend-text { font: 12px var(--oz-font-ui); fill: var(--oz-text); }
+.slot-compare { outline: 2px solid var(--oz-curve-2); outline-offset: -2px; }
+.badge-compare { font: 700 0.7rem var(--oz-font-mono); color: var(--oz-curve-2); border: 1px solid var(--oz-curve-2); padding: 0 var(--oz-1, 4px); }
+.slot-actions { display: flex; gap: var(--oz-2); }
+.slot-actions button { flex: 1; }
+.slot-actions .btn-secondary[aria-pressed='true'] { border-color: var(--oz-curve-2); color: var(--oz-curve-2); }
 .graph-thumb .graph-curve { stroke-width: 1.5; }
 .eq-view { display: flex; flex-direction: column; gap: var(--oz-3); }
 .preamp { display: flex; align-items: center; gap: var(--oz-2); }

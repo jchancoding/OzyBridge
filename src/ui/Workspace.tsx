@@ -121,6 +121,7 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
   const [dragging, setDragging] = useState(false);
   const [blocked, setBlocked] = useState<Record<string, boolean>>({});
   const [undoCount, setUndoCount] = useState(0);
+  const [compareId, setCompareId] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
   const lastOn = useRef<number>(userSlots[0]?.id ?? 0);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -131,6 +132,8 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
   const matched = useMemo(() => matchSlotNames(names[product] ?? [], profiles), [names, product, profiles]);
   const slotName = (id: number) => matched[id] ?? '';
   const index = (id: number) => String(userSlots.findIndex((s) => s.id === id) + 1).padStart(2, '0');
+  const cmpId = compareId !== null && compareId !== selected && profiles[compareId] ? compareId : null;
+  const compare = cmpId !== null ? { profile: profiles[cmpId] as EqProfile, label: slotName(cmpId) || `Slot ${index(cmpId)}` } : undefined;
   const resetKey = `${selected}:${undoCount}`;
   const anyBlocked = Object.values(blocked).some(Boolean);
   const setBlk = (k: string) => (b: boolean) => setBlocked((o) => (o[k] === b ? o : { ...o, [k]: b }));
@@ -340,8 +343,8 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
           return (
             <div
               key={s.id}
-              className={`slot${s.id === active ? ' slot-active' : ''}${s.id === selected ? ' slot-selected' : ''}${dragOver === s.id ? ' slot-drop' : ''}`}
-              onClick={() => { setSelected(s.id); setDraft(null); setBlocked({}); }}
+              className={`slot${s.id === active ? ' slot-active' : ''}${s.id === selected ? ' slot-selected' : ''}${dragOver === s.id ? ' slot-drop' : ''}${s.id === cmpId ? ' slot-compare' : ''}`}
+              onClick={() => { setSelected(s.id); setCompareId((c) => (c === s.id ? null : c)); setDraft(null); setBlocked({}); }}
               onDragOver={(e) => { e.preventDefault(); setDragOver(s.id); }}
               onDragLeave={() => setDragOver((o) => (o === s.id ? null : o))}
               onDrop={onDrop(s.id)}
@@ -358,11 +361,20 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
                   aria-label={`Name for slot ${index(s.id)}`}
                 />
                 {s.id === active && <span className="badge-active"><i />ACTIVE</span>}
+                {s.id === cmpId && <span className="badge-compare">COMPARE</span>}
               </div>
               {p ? <EqGraph profile={p} thumb /> : <div className="graph graph-thumb" />}
               <div className="mono caption">
                 {p ? `${p.bands.filter((b) => b.enabled && b.gain !== 0).length} bands · ${p.preamp.toFixed(1)} dB` : '...'}
               </div>
+              <div className="slot-actions">
+              <button
+                className="btn-secondary"
+                aria-pressed={s.id === cmpId}
+                disabled={!p || s.id === selected}
+                title="Overlay this slot's curve on the main graph"
+                onClick={(e) => { e.stopPropagation(); setCompareId((c) => (c === s.id ? null : s.id)); }}
+              >Compare</button>
               <button
                 className="btn-secondary"
                 disabled={busy || !p || active === s.id}
@@ -377,6 +389,7 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
                   });
                 }}
               >Activate</button>
+              </div>
             </div>
           );
         })}
@@ -411,7 +424,7 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
       {shown && (
         <section className="eq-view">
           <h2 className="section-title">Slot {sel} {slotName(selected)}</h2>
-          <EqGraph profile={shown} />
+          <EqGraph profile={shown} label={slotName(selected) || `Slot ${sel}`} compare={compare} />
           <div className="preamp">
             <label className="label">Preamp</label>
             <NumField label="Preamp" unit="dB" value={shown.preamp} step={cap.step.gain} range={cap.preamp} resetKey={resetKey} onBlocked={setBlk('preamp')} onCommit={(v) => setDraft({ ...shown, preamp: v })} />
