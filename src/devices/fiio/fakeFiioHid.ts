@@ -13,12 +13,20 @@ const flat = (): EqProfile => ({
 
 export class FakeFiioHid {
   opened = false;
-  productName = 'FIIO BTR17';
+  productName: string;
   vendorId = FIIO_VENDOR_ID;
-  productId = 0x0088;
-  collections = [
-    { outputReports: [{ reportId: 7, items: [{ reportSize: 8, reportCount: 32 }] }] },
-  ] as unknown as HIDCollectionInfo[];
+  productId: number;
+  reportId: number;
+  collections: HIDCollectionInfo[];
+
+  constructor(opts: { productId?: number; productName?: string; reportId?: number } = {}) {
+    this.productId = opts.productId ?? 0x0088;
+    this.productName = opts.productName ?? 'FIIO BTR17';
+    this.reportId = opts.reportId ?? 7;
+    this.collections = [
+      { outputReports: [{ reportId: this.reportId, items: [{ reportSize: 8, reportCount: 32 }] }] },
+    ] as unknown as HIDCollectionInfo[];
+  }
 
   bandCount = 10;
   silentCmds = new Set<number>();
@@ -111,7 +119,7 @@ export class FakeFiioHid {
 
   private emit(bytes: Uint8Array) {
     const data = new DataView(bytes.buffer);
-    for (const h of [...this.handlers]) h({ reportId: 7, data } as unknown as Event);
+    for (const h of [...this.handlers]) h({ reportId: this.reportId, data } as unknown as Event);
   }
 
   asHid(): HidLike {

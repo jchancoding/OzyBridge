@@ -1,5 +1,6 @@
 import { flatBand } from './eq';
 import type { EqBand, EqIssue, EqLimits, EqProfile } from './eq';
+import { wireQ } from './qCompensation';
 import { logFrequencies, profileResponseDb } from './response';
 
 export type FitResult =
@@ -70,7 +71,16 @@ export function fitProfile(profile: EqProfile, limits: EqLimits, fs = 48000): Fi
     } else if (b.gain < limits.gain.min) {
       errors.push({ band: n, message: `Filter ${n}: gain ${signed(b.gain, gd)} dB is below the device minimum of ${signed(limits.gain.min, gd)} dB.` });
     }
-    if (b.q > limits.q.max) {
+    if (limits.qLaw) {
+      const w = wireQ(b, limits.qLaw, limits.step.q);
+      const t = (v: number) => String(Number(v.toFixed(qd)));
+      const at = `Q ${t(b.q)} at ${signed(b.gain, gd)} dB needs Q ${t(w)} on this device`;
+      if (w > limits.q.max) {
+        errors.push({ band: n, message: `Filter ${n}: ${at}; the most it takes is ${t(limits.q.max)}. Lower the Q or the gain.` });
+      } else if (w < limits.q.min) {
+        errors.push({ band: n, message: `Filter ${n}: ${at}; the least it takes is ${t(limits.q.min)}. Raise the Q or the gain.` });
+      }
+    } else if (b.q > limits.q.max) {
       errors.push({ band: n, message: `Filter ${n}: Q ${b.q.toFixed(qd)} is above the device maximum of ${limits.q.max.toFixed(qd)}.` });
     } else if (b.q < limits.q.min) {
       errors.push({ band: n, message: `Filter ${n}: Q ${b.q.toFixed(qd)} is below the device minimum of ${limits.q.min.toFixed(qd)}.` });

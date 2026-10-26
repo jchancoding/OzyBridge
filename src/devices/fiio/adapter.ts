@@ -1,4 +1,5 @@
 import { profilesEqual, type EqProfile } from '../../core/eq';
+import { fromWireProfile, toWireProfile } from '../../core/qCompensation';
 import { HidTransport, TransportTimeoutError, type HidLike } from '../../transport/webhid';
 import {
   ProtocolError,
@@ -109,7 +110,8 @@ export async function connectFiio(device: HidLike, opts: ConnectOpts = {}): Prom
     if (now !== id) throw new ProtocolError(`Slot switch failed: asked for ${id}, device is on ${now}`);
   };
 
-  const readProfile = async (): Promise<EqProfile> => {
+  const qStep = caps.step.q;
+  const readWire = async (): Promise<EqProfile> => {
     const bands = [];
     for (let i = 0; i < caps.maxBands; i++) {
       const p = await get(CMD.PEQ_PARAMS, Uint8Array.of(i));
@@ -120,6 +122,7 @@ export async function connectFiio(device: HidLike, opts: ConnectOpts = {}): Prom
     if (g.length < 2) throw new ProtocolError('Short preamp reply');
     return { preamp: decodeGain(g[0]!, g[1]!), bands };
   };
+  const readProfile = async () => fromWireProfile(await readWire(), caps.qLaw, qStep);
 
   const inRange = (v: number, r: { min: number; max: number }) =>
     Number.isFinite(v) && v >= r.min && v <= r.max;
@@ -195,17 +198,18 @@ export async function connectFiio(device: HidLike, opts: ConnectOpts = {}): Prom
 
     writeSlot: (id, profile) =>
       locked(async () => {
-        guard(id, profile);
+        const wire = toWireProfile(profile, caps.qLaw, qStep);
+        guard(id, wire);
         await setActive(id);
         // FiiO Control (capture 2026-10-26) saves right after the last band, with no preamp set in between.
         await set(CMD.GLOBAL_GAIN, encodeGain(profile.preamp), timing.afterPreampMs);
         for (let i = 0; i < profile.bands.length; i++) {
-          await set(CMD.PEQ_PARAMS, encodeBandPayload(i, profile.bands[i]!), timing.bandGapMs);
+          await set(CMD.PEQ_PARAMS, encodeBandPayload(i, wire.bands[i]!), timing.bandGapMs);
         }
         await set(CMD.PEQ_SAVE, Uint8Array.of(id), timing.afterSaveMs);
-        const readBack = await readProfile();
-        if (!profilesEqual(readBack, profile)) throw new WriteVerifyError(profile, readBack);
-        return readBack;
+        const readBack = await readWire();
+        if (!profilesEqual(readBack, wire)) throw new WriteVerifyError(wire, readBack);
+        return fromWireProfile(readBack, caps.qLaw, qStep);
       }),
   };
 }
