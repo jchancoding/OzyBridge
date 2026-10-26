@@ -43,6 +43,12 @@ describe.each(['light', 'dark'] as const)('%s theme contrast', (name) => {
       expect(r, `${name}: ${fg} on ${bg} is ${r.toFixed(2)}, needs ${min}`).toBeGreaterThanOrEqual(min);
     });
   }
+  it('--oz-text-3 on --oz-bg under grid line (35%) >= 4.5', () => {
+    const line = t['--oz-line']!;
+    const bg = composite(`rgb(${parseInt(line.slice(1, 3), 16)} ${parseInt(line.slice(3, 5), 16)} ${parseInt(line.slice(5, 7), 16)} / 0.35)`, t['--oz-bg']!);
+    const r = contrastRatio(t['--oz-text-3']!, bg);
+    expect(r, `${name}: text-3 on grid is ${r.toFixed(2)}`).toBeGreaterThanOrEqual(4.5);
+  });
   for (const fg of ['--oz-text', '--oz-text-2', '--oz-text-3']) {
     it(`${fg} on glass over --oz-text >= 4.5`, () => {
       const bg = composite(t['--oz-glass']!, t['--oz-text']!);

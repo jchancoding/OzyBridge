@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseThemePref, resolveTheme } from './prefs';
+import { parseMotionPref, parseThemePref, resolveTheme } from './prefs';
 
 describe('theme prefs', () => {
   it('parses known values and defaults to system', () => {
@@ -14,5 +14,17 @@ describe('theme prefs', () => {
     expect(resolveTheme('system', false)).toBe('light');
     expect(resolveTheme('light', true)).toBe('light');
     expect(resolveTheme('dark', false)).toBe('dark');
+  });
+});
+
+describe('motion pref', () => {
+  it('defaults on unless reduced motion is requested', () => {
+    expect(parseMotionPref(null, false)).toBe('on');
+    expect(parseMotionPref(null, true)).toBe('off');
+    expect(parseMotionPref('junk', false)).toBe('on');
+  });
+  it('stored choice wins', () => {
+    expect(parseMotionPref('on', true)).toBe('on');
+    expect(parseMotionPref('off', false)).toBe('off');
   });
 });
