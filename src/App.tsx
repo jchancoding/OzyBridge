@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { isWebHidSupported, requestFiioDevice } from './transport/webhid';
+import { pickFiioInterface } from './devices/fiio/models';
+import { isWebHidSupported, requestFiioDevices } from './transport/webhid';
+import { Bench } from './ui/Bench';
 
 export function App() {
   const [name, setName] = useState<string | null>(null);
@@ -12,8 +14,10 @@ export function App() {
     );
   }
 
+  if (new URLSearchParams(location.search).has('bench')) return <Bench />;
+
   const connect = async () => {
-    const device = await requestFiioDevice();
+    const device = pickFiioInterface(await requestFiioDevices());
     if (device) setName(device.productName);
   };
 

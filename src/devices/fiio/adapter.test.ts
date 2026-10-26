@@ -3,6 +3,7 @@ import type { EqBand, EqProfile } from '../../core/eq';
 import { ProtocolError, UnsupportedDeviceError, WriteVerifyError } from '../types';
 import { connectFiio, DEFAULT_FIIO_TIMING } from './adapter';
 import { FakeFiioHid } from './fakeFiioHid';
+import { pickFiioInterface } from './models';
 
 const FORBIDDEN = new Set([0x21, 0x1b, 0x1c, 0x30]);
 const fakes: FakeFiioHid[] = [];
@@ -239,5 +240,24 @@ describe('onDisconnect', () => {
     await a.disconnect();
     hid.dispatchEvent(evt(f));
     expect(cb).not.toHaveBeenCalled();
+  });
+});
+
+describe('pickFiioInterface', () => {
+  const iface = (productId: number, reportIds: number[]) => ({
+    vendorId: 0x2972,
+    productId,
+    collections: [{ outputReports: reportIds.map((reportId) => ({ reportId })) }] as unknown as HIDCollectionInfo[],
+  });
+
+  it('picks the interface that has the model command report', () => {
+    const mqa = iface(0x0088, []);
+    const control = iface(0x0088, [2, 7]);
+    expect(pickFiioInterface([mqa, control])).toBe(control);
+  });
+
+  it('returns null for unknown models or a missing command report', () => {
+    expect(pickFiioInterface([iface(0x0001, [7])])).toBeNull();
+    expect(pickFiioInterface([iface(0x0088, [2])])).toBeNull();
   });
 });

@@ -181,9 +181,13 @@ export class HidTransport {
   }
 }
 
-export async function requestFiioDevice(): Promise<HIDDevice | null> {
-  const devices = await navigator.hid.requestDevice({ filters: [{ vendorId: 0x2972 }] });
-  return devices[0] ?? null;
+export function hasOutputReport(device: Pick<HIDDevice, 'collections'>, reportId: number): boolean {
+  return device.collections.some((c) => (c.outputReports ?? []).some((r) => r.reportId === reportId));
+}
+
+// Chrome returns one HIDDevice per HID interface of the chosen product.
+export async function requestFiioDevices(): Promise<HIDDevice[]> {
+  return navigator.hid.requestDevice({ filters: [{ vendorId: 0x2972 }] });
 }
 
 export async function getGrantedFiioDevices(): Promise<HIDDevice[]> {

@@ -1,3 +1,4 @@
+import { hasOutputReport } from '../../transport/webhid';
 import type { DeviceCapabilities, EqSlot } from '../types';
 
 export const FIIO_VENDOR_ID = 0x2972;
@@ -38,4 +39,14 @@ export const FIIO_MODELS: FiioModel[] = [
 export function findFiioModel(vendorId: number, productId: number): FiioModel | undefined {
   if (vendorId !== FIIO_VENDOR_ID) return undefined;
   return FIIO_MODELS.find((m) => m.productId === productId);
+}
+
+export function pickFiioInterface<T extends Pick<HIDDevice, 'vendorId' | 'productId' | 'collections'>>(
+  devices: readonly T[],
+): T | null {
+  for (const d of devices) {
+    const model = findFiioModel(d.vendorId, d.productId);
+    if (model && hasOutputReport(d, model.reportId)) return d;
+  }
+  return null;
 }

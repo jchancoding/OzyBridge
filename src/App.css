@@ -41,6 +41,23 @@ body {
 .btn-primary:active { background: var(--oz-accent-strong); }
 .btn-primary:focus-visible { outline: 2px solid var(--oz-accent); outline-offset: 2px; }
 
+.btn-primary:disabled { background: var(--oz-line-strong); cursor: default; filter: none; }
+
+.bench-row { display: flex; flex-wrap: wrap; gap: var(--oz-2); }
+.bench-field { display: flex; gap: var(--oz-2); align-items: center; color: var(--oz-text-2); }
+.bench-log {
+  align-self: stretch;
+  margin: 0;
+  padding: var(--oz-3);
+  min-height: 320px;
+  max-height: 60vh;
+  overflow: auto;
+  background: var(--oz-surface);
+  border: 1px solid var(--oz-line);
+  font: 12px/1.5 var(--oz-font-mono);
+  white-space: pre-wrap;
+}
+
 .device-name {
   margin: 0;
   font-family: var(--oz-font-mono);
