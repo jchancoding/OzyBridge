@@ -15,9 +15,9 @@ export function Mascot() {
             </g>
           ))}
           <g className="mascot__steam">
-            <rect x="19" y="7" width="1" height="1" fill="var(--oz-mascot-2)" />
-            <rect x="20" y="5" width="1" height="1" fill="var(--oz-mascot-2)" />
-            <rect x="19" y="3" width="1" height="1" fill="var(--oz-mascot-2)" />
+            <rect x="18" y="6" width="1" height="1" fill="var(--oz-mascot-2)" />
+            <rect x="19" y="4" width="1" height="1" fill="var(--oz-mascot-2)" />
+            <rect x="18" y="2" width="1" height="1" fill="var(--oz-mascot-2)" />
           </g>
         </svg>
       </div>

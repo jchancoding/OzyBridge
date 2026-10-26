@@ -90,6 +90,8 @@
 @keyframes mascot-gate-sit {
   0% { visibility: hidden; }
   30% { visibility: visible; }
+  33% { visibility: hidden; }
+  48% { visibility: visible; }
   50% { visibility: hidden; }
 }
 
