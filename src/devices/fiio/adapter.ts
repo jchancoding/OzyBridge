@@ -197,10 +197,11 @@ export async function connectFiio(device: HidLike, opts: ConnectOpts = {}): Prom
       locked(async () => {
         guard(id, profile);
         await setActive(id);
+        // FiiO Control (capture 2026-10-26) saves right after the last band, with no preamp set in between.
+        await set(CMD.GLOBAL_GAIN, encodeGain(profile.preamp), timing.afterPreampMs);
         for (let i = 0; i < profile.bands.length; i++) {
           await set(CMD.PEQ_PARAMS, encodeBandPayload(i, profile.bands[i]!), timing.bandGapMs);
         }
-        await set(CMD.GLOBAL_GAIN, encodeGain(profile.preamp), timing.afterPreampMs);
         await set(CMD.PEQ_SAVE, Uint8Array.of(id), timing.afterSaveMs);
         const readBack = await readProfile();
         if (!profilesEqual(readBack, profile)) throw new WriteVerifyError(profile, readBack);

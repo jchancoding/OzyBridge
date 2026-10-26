@@ -2,7 +2,7 @@
 
 Read `AGENTS.md` first.
 
-Task: scaffold the OzyControl app: tooling, design tokens, core EQ types, `DeviceAdapter` interface, and a tested WebHID transport.
+Task: scaffold the OzyBridge app: tooling, design tokens, core EQ types, `DeviceAdapter` interface, and a tested WebHID transport.
 Phase: 2 (see `docs/ROADMAP.md`).
 
 ## Files you may create or change
@@ -76,7 +76,7 @@ Use current stable versions. No ESLint, no Prettier, no CSS frameworks, no font 
    - `requestFiioDevice(): Promise<HIDDevice | null>` calls `navigator.hid.requestDevice({ filters: [{ vendorId: 0x2972 }] })` and returns the first device or null. `getGrantedFiioDevices(): Promise<HIDDevice[]>`.
    - Tests in `webhid.test.ts` with a fake `HidLike` and Vitest fake timers: report length derivation, padding, too-long frame throws, request matching skips non-matching reports, timeout, FIFO order, `minGapMs` respected, close rejects pending.
 
-6. **App shell.** `App.tsx`: if WebHID is unsupported, show "OzyControl needs Chrome or Edge on desktop (WebHID)." Otherwise a `CONNECT` primary button that calls `requestFiioDevice()` and shows the product name. Style with tokens only; chamfered primary button per the style guide. No routing, no state library.
+6. **App shell.** `App.tsx`: if WebHID is unsupported, show "OzyBridge needs Chrome or Edge on desktop (WebHID)." Otherwise a `CONNECT` primary button that calls `requestFiioDevice()` and shows the product name. Style with tokens only; chamfered primary button per the style guide. No routing, no state library.
 
 ## Out of scope
 

@@ -176,11 +176,11 @@ export function Bench() {
   const downloadXml = (a: FiioAdapter) =>
     run('Download USER10 as FiiO .xml', async () => {
       const p = await a.readSlot(TEST_SLOT);
-      const xml = exportFiioXml(p, { model: a.info.productName, name: 'OzyControl bench USER10' });
+      const xml = exportFiioXml(p, { model: a.info.productName, name: 'OzyBridge bench USER10' });
       const url = URL.createObjectURL(new Blob([xml], { type: 'application/xml' }));
       const link = document.createElement('a');
       link.href = url;
-      link.download = 'OzyControl bench USER10.xml';
+      link.download = 'OzyBridge bench USER10.xml';
       link.click();
       URL.revokeObjectURL(url);
     });

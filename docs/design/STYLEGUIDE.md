@@ -1,4 +1,4 @@
-# OzyControl style guide
+# OzyBridge style guide
 
 Inspiration: WipeOut Pure, WipeOut 2048, Ridge Racer (PSP, PS Vita).
 The feeling: a clean, bright race-HUD. White space, precise geometry, one confident accent, numbers that look like telemetry.

@@ -35,8 +35,8 @@ Command channel (observed descriptor): vendor collection with **report ID 7**, 3
 - Report ID 7. Output reports zero-padded to 32 bytes.
 - Request/response: send one frame, wait for the next input report. FiiO matches replies on byte 4 (command ID) only.
 - All device I/O goes through one serial task queue. Never have two requests in flight.
-- Band writes are fire-and-forget (`sendReport`, no wait). FiiO waits for a reply on everything else, but our BTR17 does not reply to sets (see Bench results), so OzyControl sends all sets blind and verifies with gets.
-- One controller at a time: close FiiO Control before connecting OzyControl.
+- Band writes are fire-and-forget (`sendReport`, no wait). FiiO waits for a reply on everything else, but our BTR17 does not reply to sets (see Bench results), so OzyBridge sends all sets blind and verifies with gets.
+- One controller at a time: close FiiO Control before connecting OzyBridge.
 
 ## Frame layout (FiiO)
 
@@ -95,10 +95,10 @@ These are unit-test vectors for the frame encoder.
 ### Write sequence (FiiO, editing a user slot)
 
 1. Switch to the target slot (`0x16`), wait for reply.
-2. Write each band (`0x15`), about 100 ms apart, no reply wait.
-3. Write preamp (`0x17`), wait for reply. devicePEQ and FiiO's serial path both wait about 2 s after preamp.
-4. Save (`0x19 [slotId]`), wait for reply.
-5. OzyControl addition: read every band and the preamp back and compare.
+2. Write preamp (`0x17`), then wait about 2 s (devicePEQ and FiiO's serial path do).
+3. Write each band (`0x15`), about 100 ms apart, no reply wait.
+4. Save (`0x19 [slotId]`) right after the last band. FiiO's capture (2026-10-26) saved 18 ms after band 9, with no preamp set in the sequence, and no `0x16` switch.
+5. OzyBridge addition: read every band and the preamp back and compare.
 
 Unused bands: write gain 0 (FiiO resets bands to the defaults below rather than shrinking the count).
 
@@ -122,7 +122,7 @@ FiiO's "reset slot" for the BTR17 writes these 10 bands (peak, gain 0, Q 1) and 
 | Filter types | peak, low shelf, high shelf | FiiO |
 | Gain range | -24 to +12 dB (FiiO default; BTR17 has no override). devicePEQ constrains to ±12. | FiiO |
 | Q range | 0.25 to 8 | FiiO default |
-| Q handling | FiiO sends Q unchanged. devicePEQ pre-compensates Q from REW measurements. OzyControl sends unchanged by default so presets read back identically in FiiO Control. | both |
+| Q handling | FiiO sends Q unchanged. devicePEQ pre-compensates Q from REW measurements. OzyBridge sends unchanged by default so presets read back identically in FiiO Control. | both |
 
 Slot IDs (FiiO and devicePEQ agree):
 
@@ -132,7 +132,7 @@ Slot IDs (FiiO and devicePEQ agree):
 
 ## Preset names: not on the device
 
-FiiO Control only allows custom preset names (`0x30`) for a fixed list of products. The BTR17 is not on it. Slot names live in OzyControl's browser storage.
+FiiO Control only allows custom preset names (`0x30`) for a fixed list of products. The BTR17 is not on it. Slot names live in OzyBridge's browser storage.
 
 ## Other settings
 
@@ -151,7 +151,7 @@ Commands present in FiiO's shared table that might apply, all unverified on the 
 
 If added later: read-only probe first, then set on the bench.
 
-## Bench results (observed, 2026-10-26, OzyControl bench)
+## Bench results (observed, 2026-10-26, OzyBridge bench)
 
 - Gets `0x18`, `0x16`, `0x15`, `0x17` reply within about 30 ms. Layouts match the doc. Our frames with a real sequence and CRC are accepted.
 - Every reply has sequence `00 00` and CRC byte `00`. The device does not fill either field.
@@ -167,6 +167,6 @@ If added later: read-only probe first, then set on the bench.
 ## Open questions
 
 1. (Answered in round 2.) Sets take effect, and nothing comes back for them.
-2. **Blocking:** how does FiiO Control persist BTR17 band edits? Capture it (see ROADMAP Phase 4 next step). Do not try `0x21` blind: FiiO uses it for factory reset, even though devicePEQ uses `0x21 [slotId]` as the BTR17 save.
+2. (Answered 2026-10-26.) FiiO persists with the same `0x19 [slot]`; bands then save, no preamp in between. Power-cycle verified on USER1. Rounds 3 and 4 above ran with FiiO Control open and are unreliable. Old question: how does FiiO Control persist BTR17 band edits? Capture it (see ROADMAP Phase 4 next step). Do not try `0x21` blind: FiiO uses it for factory reset, even though devicePEQ uses `0x21 [slotId]` as the BTR17 save.
 3. Is there a heartbeat on HID, and what frame? (Short capture.)
 4. Does the BLE link accept the same commands? (Later.)

@@ -47,7 +47,7 @@ export function parseAutoEq(text: string): ImportResult {
         {
           line: chIdx + 1,
           message:
-            'This file has separate EQ for the left and right channels. OzyControl applies one EQ to both channels. Turn off two-channel EQ in Squiglink and export again.',
+            'This file has separate EQ for the left and right channels. OzyBridge applies one EQ to both channels. Turn off two-channel EQ in Squiglink and export again.',
         },
       ],
     };

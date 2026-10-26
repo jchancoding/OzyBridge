@@ -1,5 +1,5 @@
 {
-  "name": "ozycontrol",
+  "name": "ozybridge",
   "version": "0.1.0",
   "description": "A login-free web control center for USB DACs and amps. First target: FiiO BTR17.",
   "scripts": {

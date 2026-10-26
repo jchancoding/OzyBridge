@@ -1,11 +1,11 @@
-# OzyControl roadmap
+# OzyBridge roadmap
 
 ## Goal
 
 A static web app that fully controls a FiiO BTR17 with no login and no FiiO account:
 
 - Import and export Squiglink / AutoEQ parametric EQ text directly, and FiiO's own EQ file (`.xml`) for moving presets to and from FiiO Control.
-- OzyControl is a transfer tool, not an EQ designer. Users build EQs in Squiglink, PeqDB Studio or AutoEQ and bring them here.
+- OzyBridge is a transfer tool, not an EQ designer. Users build EQs in Squiglink, PeqDB Studio or AutoEQ and bring them here.
 - Manage the 10 user EQ slots with real names visible at a glance.
 - Expose the device's other settings that FiiO Control exposes.
 - Be built so other FiiO models, and later other vendors, are config or adapter additions.
@@ -46,7 +46,7 @@ Result (2026-10-26, steps 1, 3, 4 done statically):
 
 - FiiO Control's public bundle contains its full command table, frame builder and per-model feature gates. Exact layouts are in `docs/protocol/fiio-btr17.md`.
 - Frames carry a uint16 sequence and a CRC-8/MAXIM checksum. devicePEQ zeroes both. We match FiiO.
-- Safety: devicePEQ saves BTR17 EQ with `0x21`, which is FiiO's factory-reset command. FiiO saves with `0x19`. `0x21` is forbidden in OzyControl.
+- Safety: devicePEQ saves BTR17 EQ with `0x21`, which is FiiO's factory-reset command. FiiO saves with `0x19`. `0x21` is forbidden in OzyBridge.
 - No device-stored preset names on the BTR17. Names are browser-side.
 - FiiO Control's web app exposes only EQ, firmware update and factory reset for the BTR17. MVP is EQ only.
 - Step 2 is reduced to one short optional capture to confirm framing and save acknowledgements (`tools/capture/webhid-logger.js`). Otherwise the adapter verifies itself with read-only probes in Phase 4.
@@ -83,14 +83,9 @@ Progress (2026-10-26): 4b adapter and 4c format exports done per `docs/agents/ta
 - `connectFiio` checks the band count on connect and refuses on a mismatch. Writes check limits before sending anything, follow FiiO's sequence, save with `0x19`, then read back and reject on a mismatch. `readSlot` restores the previously active slot. EQ off is `setActiveSlot(240)`. The BTR17 is a config entry in `src/devices/fiio/models.ts`.
 - Squiglink's export format is the same as AutoEQ's (checked in squig.link's `graphtool.js`). Two-channel Squiglink files (`Channel: L/R`) are rejected with a plain message. `exportAutoEq` can omit flat bands. `exportFiioXml` reproduces FiiO's file layout byte for byte.
 - 4d bench (`?bench`, `src/ui/Bench.tsx`) on the real BTR17: reads, slot switches, band and preamp writes all verified. Sets get no reply, so they are sent blind and verified by gets. The chooser shows one entry. Write time about 4.5 s is accepted by the user. Details in the protocol doc's "Bench results".
-- **Blocker:** band edits are lost on power cycle. The preamp persists. `0x19` is not enough for bands.
-
-Next step (fresh chat, Sonnet low or Composer, short):
-
-1. The user captures FiiO Control saving one band change on USER10 with `tools/capture/webhid-logger.js` and saves the dump as `captures/btr17-save.json`.
-2. The agent reads only the `out` frames from that file (for example `rg '"out"'`), finds the save sequence, and adds the command to `protocol.ts` (with a test vector) and to the write sequence in `adapter.ts`.
-3. The user reruns the bench power-cycle check once: Clear log, Connect, 1, 2, 4, unplug and replug, reload, Connect, 1, 5. In step 5, "USER10 before restore" must show A2000 (Filter 1 `LSC Fc 22 Hz Gain 6.6 dB`). Paste only the step 5 block.
-4. Write the Phase 4 result here and close the phase.
+- Blocker resolved (2026-10-26): `0x19` does persist band edits. FiiO's capture (`captures/btr17-save.json`) shows the same `0x19 [slot]` save frame we send, 18 ms after band 9, with no preamp set and no slot switch. The adapter now writes preamp first, then the 10 bands, then saves. Power-cycle check on USER1 passed: A2000 survived unplug and replug.
+- USER10 (`0xA9`) still fails (checked 2026-10-26 with FiiO Control closed): after a power cycle the bands are the old ones and the preamp is the new one. USER1 persists. Untested ideas, cheapest first: (1) leave the written slot active instead of switching back to the original before unplugging (the bench's `writeAndRestoreActive` switches back); (2) capture FiiO Control saving a band edit on USER10 and compare. Until fixed, only USER1 is verified to persist.
+- Phase 4 is closed for the adapter except the USER10 persistence issue above. Non-PEQ controls are out of MVP scope (FiiO Control exposes none for the BTR17).
 
 ### Phase 5: UI (executor model, style guide is the spec)
 
@@ -99,6 +94,15 @@ Connect screen, slot grid (10 named slots), EQ view with graph, import/export, d
 - Import/export: one button pair per format. "Squiglink / AutoEQ (.txt)" and "FiiO (.xml)". Squiglink and AutoEQ share one text format, so they share a button. Text export omits flat bands (Squiglink does the same). FiiO export writes all device bands.
 - EQ view is barebones (decided 2026-10-26): response graph plus a band table with plain numeric fields for small tweaks (gain, frequency, Q, type, preamp). No draggable graph handles, no headphone measurements, no target curves, no auto-EQ. Those live in Squiglink and PeqDB Studio.
 Slot names live in browser storage keyed by product name, plus JSON backup/restore. If the device turns out to store names, write them to the device too. On connect, match device bands to known profiles so names survive changes made elsewhere.
+
+Result (2026-10-27): done. Executor: Sonnet 5.5 low, one chat resumed across three feedback rounds; planner reviewed. 116 tests, typecheck and build pass. User tested on the real BTR17: slot switching, EQ on/off, file drop with overwrite confirm, band edit and save, name and bands surviving a power cycle (USER1).
+
+- `src/ui/Workspace.tsx`, `src/ui/EqGraph.tsx`; pure logic in `src/core/slotNames.ts` (names keyed by preamp+band fingerprint) and `src/core/step.ts` (stepping, draft number parsing).
+- One sticky message banner for all confirms, errors and progress. Orange drop highlight, blue active slot with badge. EQ is a real switch. Number fields accept partial input and show limits as tooltips.
+- Squiglink-style graph: log 20 Hz-20 kHz, dB axis, labeled frequency regions.
+- Fonts self-hosted in `public/fonts/` (Inter, JetBrains Mono, Michroma, OFL).
+- Limits: gain and preamp -24 to +12 dB are FiiO's defaults for the BTR17 (protocol doc); devicePEQ uses ±12.
+- Not done: device settings panel (FiiO Control exposes none for the BTR17). Unused `.toggle` CSS left in `App.css`. USER10 persistence still open from Phase 4.
 
 ### Phase 6: Hardening and release
 
@@ -128,7 +132,7 @@ Rules:
 
 Budget (set by the user, 2026-10-26):
 
-- OzyControl may use at most 10% of the total Cursor budget, and less is better. About 4% was used through Phase 4. Keep a buffer: aim to finish Phases 5 and 6 within about 3% more.
+- OzyBridge may use at most 10% of the total Cursor budget, and less is better. About 4% was used through Phase 4. Keep a buffer: aim to finish Phases 5 and 6 within about 3% more.
 - One planner chat per phase with few turns. Hand off to a fresh chat when a chat gets long (large logs, many rounds).
 - Batch device tests: one bench script per question set, run once. The user pastes only the result lines asked for, not full frame logs.
 - Default to Sonnet low or Composer for planning and execution. Use Opus only for protocol decoding that cheaper models have failed at.

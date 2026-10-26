@@ -117,8 +117,9 @@ describe('writeSlot', () => {
     const back = await a.writeSlot(165, p);
     expect(f.sent.map((s) => `${s.kind}:${s.cmd.toString(16)}`)).toEqual([
       'set:16', 'get:16',
+      'set:17',
       ...Array(10).fill('set:15'),
-      'set:17', 'set:19',
+      'set:19',
       ...Array(10).fill('get:15'),
       'get:17',
     ]);
@@ -180,8 +181,7 @@ describe('writeSlot', () => {
       expect(bands[i]!.at - bands[i - 1]!.at).toBeGreaterThanOrEqual(100);
     }
     const pre = f.sent.find((s) => s.kind === 'set' && s.cmd === 0x17)!;
-    const save = f.sent.find((s) => s.cmd === 0x19)!;
-    expect(save.at - pre.at).toBeGreaterThanOrEqual(DEFAULT_FIIO_TIMING.afterPreampMs);
+    expect(bands[0]!.at - pre.at).toBeGreaterThanOrEqual(DEFAULT_FIIO_TIMING.afterPreampMs);
     const switchSet = f.sent.find((s) => s.kind === 'set' && s.cmd === 0x16)!;
     const switchGet = f.sent.find((s) => s.kind === 'get' && s.cmd === 0x16)!;
     expect(switchGet.at - switchSet.at).toBeGreaterThanOrEqual(DEFAULT_FIIO_TIMING.setGapMs);

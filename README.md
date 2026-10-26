@@ -1,4 +1,4 @@
-# OzyControl
+# OzyBridge
 
 A login-free web control center for USB DACs and amps. First target: FiiO BTR17.
 

@@ -1,6 +1,6 @@
-# OzyControl agent rules
+# OzyBridge agent rules
 
-OzyControl is a login-free, browser-based control center for USB DACs and amps.
+OzyBridge is a login-free, browser-based control center for USB DACs and amps.
 MVP target: FiiO BTR17 over WebHID. Later: other FiiO models, then other vendors.
 
 ## Read first, and only what you need

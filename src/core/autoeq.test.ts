@@ -145,7 +145,7 @@ describe('Squiglink', () => {
       'Channel: R', 'Preamp: -1 dB', 'Filter 1: ON PK Fc 100 Hz Gain 1 dB Q 1', 'Filter 2: ON PK Fc 200 Hz Gain 1 dB Q 1'].join('\n');
     expect(errs(t)).toEqual([{
       line: 1,
-      message: 'This file has separate EQ for the left and right channels. OzyControl applies one EQ to both channels. Turn off two-channel EQ in Squiglink and export again.',
+      message: 'This file has separate EQ for the left and right channels. OzyBridge applies one EQ to both channels. Turn off two-channel EQ in Squiglink and export again.',
     }]);
   });
 
