@@ -38,7 +38,13 @@ function curvePath(profile: EqProfile, n: number, fx: (f: number) => number, fy:
   };
 }
 
-export function EqGraph({ profile, thumb = false }: { profile: EqProfile; thumb?: boolean }) {
+export function EqGraph({ profile, thumb = false, label = 'Current', compare }: {
+  profile: EqProfile; thumb?: boolean; label?: string; compare?: { profile: EqProfile; label: string };
+}) {
+  const cmpPath = useMemo(
+    () => (!thumb && compare ? curvePath(compare.profile, 260, x, y).path : null),
+    [compare, thumb],
+  );
   const { path, peak } = useMemo(
     () =>
       thumb
@@ -57,7 +63,7 @@ export function EqGraph({ profile, thumb = false }: { profile: EqProfile; thumb?
   }
 
   return (
-    <svg className="graph" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`EQ response, peak ${peak.toFixed(1)} dB`}>
+    <svg className="graph" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`EQ response, peak ${peak.toFixed(1)} dB${compare ? `, compared with ${compare.label}` : ''}`}>
       {REGIONS.map((r, i) => (
         <g key={r.name}>
           <title>{`${r.title} ${r.range} Hz`}</title>
@@ -80,7 +86,18 @@ export function EqGraph({ profile, thumb = false }: { profile: EqProfile; thumb?
       ))}
       <rect x={L} y={T} width={PW} height={PH} className="graph-frame" />
       {peak > 0 && <rect x={L} y={T} width={PW} height={y(0) - T} className="graph-clip" />}
+      {cmpPath && <path d={cmpPath} className="graph-curve-2" />}
       <path d={path} className="graph-curve" />
+      {compare && (
+        <g className="graph-legend">
+          {[{ name: label, cls: 'graph-curve' }, { name: compare.label, cls: 'graph-curve-2' }].map((e, i) => (
+            <g key={i} transform={`translate(${W - R - 150} ${T + 16 + i * 18})`}>
+              <line x1={0} x2={22} y1={0} y2={0} className={e.cls} />
+              <text x={28} y={4} className="graph-legend-text">{e.name.length > 18 ? `${e.name.slice(0, 17)}…` : e.name}</text>
+            </g>
+          ))}
+        </g>
+      )}
       <text x={L + PW / 2} y={H - 8} className="graph-axis" textAnchor="middle">Frequency (Hz)</text>
       <text transform={`translate(14 ${T + PH / 2}) rotate(-90)`} className="graph-axis" textAnchor="middle">Gain (dB)</text>
     </svg>
