@@ -7,20 +7,32 @@
   --oz-surface: #FFFFFF;
   --oz-surface-2: #E9EDF1;
   --oz-line: #C9D1D9;
-  --oz-line-strong: #8C98A4;
+  --oz-line-strong: #88949F;
   --oz-text: #101820;
   --oz-text-2: #4A5563;
-  --oz-text-3: #7D8794;
-  --oz-accent: #00A6E0;
-  --oz-accent-strong: #0077B6;
+  --oz-text-3: #5F6975;
+  --oz-accent: #0086BD;
+  --oz-accent-strong: #006FAA;
   --oz-accent-wash: #DFF4FC;
   --oz-signal: #FF5A1F;
-  --oz-warn: #FFB800;
-  --oz-danger: #E5254B;
-  --oz-ok: #14B87A;
-  --oz-drop: #F57C00;
+  --oz-warn: #A87400;
+  --oz-danger: #D61F45;
+  --oz-ok: #0B7F55;
+  --oz-drop: #C25E00;
   --oz-drop-wash: #FFF0DC;
   --oz-curve-2: #B34DFF;
+  --oz-accent-fill: #0077B6;
+  --oz-on-accent: #FFFFFF;
+  --oz-on-danger: #FFFFFF;
+  --oz-on-ok: #FFFFFF;
+  --oz-danger-wash: #FFF1F4;
+  --oz-warn-wash: #FFF8E1;
+  --oz-scrim: rgb(16 24 32 / 0.12);
+  --oz-inverse: #101820;
+  --oz-on-inverse: #FFFFFF;
+  --oz-glass: rgb(255 255 255 / 0.92);
+  --oz-blur: 10px;
+  color-scheme: light;
 
   --oz-1: 4px;
   --oz-2: 8px;
@@ -41,6 +53,39 @@
   --oz-font-display: 'Michroma', 'Inter', system-ui, sans-serif;
   --oz-font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --oz-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+}
+
+:root[data-theme='dark'] {
+  --oz-bg: #0E131A;
+  --oz-surface: #161D26;
+  --oz-surface-2: #1F2833;
+  --oz-line: #2E3A47;
+  --oz-line-strong: #6B7888;
+  --oz-text: #E8EDF2;
+  --oz-text-2: #A9B4C0;
+  --oz-text-3: #9AA6B4;
+  --oz-accent: #22C3F5;
+  --oz-accent-strong: #6BD6FF;
+  --oz-accent-wash: #0F2E3D;
+  --oz-signal: #FF7A45;
+  --oz-warn: #FFC633;
+  --oz-danger: #FF5C7A;
+  --oz-ok: #2FD49A;
+  --oz-drop: #FF9A3D;
+  --oz-drop-wash: #3A2610;
+  --oz-curve-2: #C77DFF;
+  --oz-accent-fill: #22C3F5;
+  --oz-on-accent: #0E131A;
+  --oz-on-danger: #0E131A;
+  --oz-on-ok: #0E131A;
+  --oz-danger-wash: #3A1620;
+  --oz-warn-wash: #3A3010;
+  --oz-scrim: rgb(0 0 0 / 0.45);
+  --oz-inverse: #E8EDF2;
+  --oz-on-inverse: #101820;
+  --oz-glass: rgb(22 29 38 / 0.92);
+  --oz-blur: 10px;
+  color-scheme: dark;
 }
 
 @media (prefers-reduced-motion: reduce) {

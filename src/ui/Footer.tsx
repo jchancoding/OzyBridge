@@ -1,8 +1,27 @@
+import { useThemePref, type ThemePref } from './prefs';
+
 const font = (file: string) => `${import.meta.env.BASE_URL}fonts/${file}`;
 
+const OPTIONS: { pref: ThemePref; label: string }[] = [
+  { pref: 'system', label: 'AUTO' },
+  { pref: 'light', label: 'LIGHT' },
+  { pref: 'dark', label: 'DARK' },
+];
+
 export function Footer() {
+  const [pref, setPref] = useThemePref();
   return (
     <footer className="site-footer">
+      <div className="theme-row">
+        <span className="label">THEME</span>
+        <div role="group" aria-label="Theme" className="theme-group">
+          {OPTIONS.map((o) => (
+            <button key={o.pref} type="button" className="btn-secondary" aria-pressed={pref === o.pref} onClick={() => setPref(o.pref)}>
+              {o.label}
+            </button>
+          ))}
+        </div>
+      </div>
       <p className="site-footer__support">
         <a href="https://paypal.me/ozybridge" target="_blank" rel="noopener noreferrer">
           <span aria-hidden="true">☕</span> Support OzyBridge <span aria-hidden="true">❤️</span>
