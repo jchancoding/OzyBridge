@@ -196,6 +196,10 @@ export async function requestFiioDevices(): Promise<HIDDevice[]> {
   return navigator.hid.requestDevice({ filters: [{ vendorId: 0x2972, usagePage: 0x01 }] });
 }
 
+export async function requestFiioDevicesAnyInterface(): Promise<HIDDevice[]> {
+  return navigator.hid.requestDevice({ filters: [{ vendorId: 0x2972 }] });
+}
+
 export async function getGrantedFiioDevices(): Promise<HIDDevice[]> {
   const devices = await navigator.hid.getDevices();
   return devices.filter((d) => d.vendorId === 0x2972);

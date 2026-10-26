@@ -201,3 +201,7 @@ h1.display { font-size: 1.75rem; }
 .numfield { display: inline-flex; flex-direction: column; gap: 2px; }
 .num-error { border-color: var(--oz-danger); background: #FFF1F4; }
 .field-error { color: var(--oz-danger); font-size: 0.8125rem; font-weight: 600; }
+
+.site-footer { margin-top: var(--oz-6, 2rem); padding-top: var(--oz-4); border-top: 1px solid var(--oz-line); width: 100%; font-family: var(--oz-font-ui); font-size: 0.8125rem; color: var(--oz-text-3); }
+.site-footer p { margin: 0 0 var(--oz-2); }
+.site-footer a { color: inherit; text-decoration: underline; }
