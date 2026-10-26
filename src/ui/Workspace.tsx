@@ -127,7 +127,7 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
   const [lastWrite, setLastWrite] = useState<{ id: number; profile: EqProfile; name: string } | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
   const lastOn = useRef<number>(userSlots[0]?.id ?? 0);
-  const shared = useRef<ReturnType<typeof decodeShareFragment> | null>(null);
+  const shared = useRef<ReturnType<typeof decodeShareFragment> | null>(location.hash ? decodeShareFragment(location.hash) : null);
   const [readDone, setReadDone] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const restoreRef = useRef<HTMLInputElement>(null);
@@ -175,12 +175,6 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
     }
   }, []);
 
-  useState(() => {
-    const d = decodeShareFragment(location.hash);
-    if (d.ok) shared.current = d;
-    if (location.hash) history.replaceState(null, '', location.pathname + location.search);
-  });
-
   useEffect(() => {
     setReadDone(false);
     void run('Reading slots from the device...', async () => {
@@ -198,8 +192,12 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
 
   useEffect(() => {
     const d = shared.current;
-    if (!readDone || !d || !d.ok) return;
+    if (!readDone || !d) return;
+    // Keep the link in the address bar if the slot read failed, so a reload can retry it.
+    if (userSlots.some((s) => !profiles[s.id])) return;
     shared.current = null;
+    history.replaceState(null, '', location.pathname + location.search);
+    if (!d.ok) return;
     const fit = fitProfile(d.profile, cap);
     if (!fit.ok) {
       setNotice({ kind: 'error', text: fit.errors.map((e) => e.message).join(' ') });
