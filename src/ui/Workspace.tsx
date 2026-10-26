@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent } from 'react';
 import { serializeSlotBackup } from '../core/backup';
 import { exportAutoEq, parseAutoEq } from '../core/autoeq';
 import type { EqBand, EqProfile, FilterType, Range } from '../core/eq';
@@ -10,6 +10,7 @@ import { addPreset, deletePreset, mergePresets, parsePresets, renamePreset, seri
 import { commitNumber, inRange, parseDecimal, stepValue } from '../core/step';
 import type { DeviceAdapter } from '../devices/types';
 import { EqGraph } from './EqGraph';
+import './motion.css';
 import { PresetLibrary, PRESET_DRAG_TYPE } from './PresetLibrary';
 
 const NAMES_KEY = 'ozy-slot-names';
@@ -129,6 +130,7 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
   const [undoCount, setUndoCount] = useState(0);
   const [compareId, setCompareId] = useState<number | null>(null);
   const [lastWrite, setLastWrite] = useState<{ id: number; profile: EqProfile; name: string } | null>(null);
+  const [sweep, setSweep] = useState(0);
   const [dragOver, setDragOver] = useState<number | null>(null);
   const lastOn = useRef<number>(userSlots[0]?.id ?? 0);
   const shared = useRef<ReturnType<typeof decodeShareFragment> | null>(location.hash ? decodeShareFragment(location.hash) : null);
@@ -235,6 +237,7 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
       const back = await adapter.writeSlot(id, profile);
       setProfiles((all) => ({ ...all, [id]: back }));
       if (!isUndo) setPending(null);
+      setSweep((n) => n + 1);
       updateNames((n) => renameSlot(n, product, id, back, name));
       if (id === selected) setDraft(null);
       if (isUndo) {
@@ -461,11 +464,12 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
 
       <h2 className="section-title">EQ slots</h2>
       <div className="slot-grid">
-        {userSlots.map((s) => {
+        {userSlots.map((s, i) => {
           const p = profiles[s.id];
           return (
             <div
               key={s.id}
+              style={{ '--i': i } as CSSProperties}
               className={`slot${s.id === active ? ' slot-active' : ''}${s.id === selected ? ' slot-selected' : ''}${dragOver === s.id ? ' slot-drop' : ''}${s.id === cmpId ? ' slot-compare' : ''}`}
               onClick={() => { setSelected(s.id); setCompareId((c) => (c === s.id ? null : c)); setDraft(null); setBlocked({}); }}
               onDragOver={(e) => { e.preventDefault(); setDragOver(s.id); }}
@@ -564,7 +568,7 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
       {shown && (
         <section className="eq-view">
           <h2 className="section-title">Slot {sel} {slotName(selected)}</h2>
-          <EqGraph profile={shown} label={slotName(selected) || `Slot ${sel}`} compare={compare} />
+          <EqGraph profile={shown} label={slotName(selected) || `Slot ${sel}`} compare={compare} sweep={sweep} />
           <div className="preamp">
             <label className="label">Preamp</label>
             <NumField label="Preamp" unit="dB" value={shown.preamp} step={cap.step.gain} range={cap.preamp} resetKey={resetKey} onBlocked={setBlk('preamp')} onCommit={(v) => setDraft({ ...shown, preamp: v })} />
