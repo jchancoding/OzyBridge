@@ -1,4 +1,5 @@
 import { hasOutputReport } from '../../transport/webhid';
+import type { FilterType } from '../../core/eq';
 import type { DeviceCapabilities, EqSlot } from '../types';
 
 export const FIIO_VENDOR_ID = 0x2972;
@@ -50,6 +51,29 @@ function devicePeqModel(
   };
 }
 
+const ka17Slots: EqSlot[] = [
+  ...[['Jazz', 0], ['Pop', 1], ['Rock', 2], ['Dance', 3], ['R&B', 5], ['Classic', 6], ['Hip-hop', 7]].map(
+    ([label, id]) => ({ id: id as number, label: label as string, writable: false }),
+  ),
+  { id: 4, label: 'USER1', writable: true },
+  { id: 8, label: 'USER2', writable: true },
+  { id: 9, label: 'USER3', writable: true },
+];
+const qx13Slots: EqSlot[] = [
+  ...builtInSlots,
+  { id: 8, label: 'Retro', writable: false },
+  ...userSlots(Array.from({ length: 10 }, (_, i) => 160 + i)),
+];
+const wireCaps = {
+  maxBands: 10,
+  filterTypes: ['PK', 'LSC', 'HSC'] as FilterType[],
+  q: { min: 0.25, max: 8 },
+  freq: { min: 20, max: 20000 },
+  step: { gain: 0.1, q: 0.01, freq: 1 },
+  defaultFreqs,
+  qLaw: 'rbjGain' as const,
+};
+
 export const FIIO_MODELS: FiioModel[] = [
   {
     productId: 0x0088,
@@ -71,6 +95,34 @@ export const FIIO_MODELS: FiioModel[] = [
   },
   devicePeqModel(0x0104, 'FiiO KA15', -12, [7, 8, 9], 10),
   devicePeqModel(0x0126, 'SNOWSKY Melody', -12, [160, 161, 162], 240),
+  {
+    productId: 0x0093,
+    name: 'FiiO KA17',
+    reportId: 1,
+    firmwareCmd: false,
+    untested: true,
+    capabilities: {
+      ...wireCaps,
+      gain: { min: -12, max: 12 },
+      preamp: { min: -12, max: 12 },
+      slots: ka17Slots,
+      eqOffSlotId: 10,
+    },
+  },
+  {
+    productId: 0x0128,
+    name: 'FiiO QX13',
+    reportId: 7,
+    firmwareCmd: false,
+    untested: true,
+    capabilities: {
+      ...wireCaps,
+      gain: { min: -24, max: 12 },
+      preamp: { min: -24, max: 12 },
+      slots: qx13Slots,
+      eqOffSlotId: 240,
+    },
+  },
 ];
 
 export function findFiioModel(vendorId: number, productId: number): FiioModel | undefined {

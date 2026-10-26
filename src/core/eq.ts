@@ -8,6 +8,8 @@ export interface EqLimits {
   gain: Range; preamp: Range; q: Range; freq: Range;
   step: { gain: number; q: number; freq: number };
   defaultFreqs?: number[];
+  // `q` is the wire range; user-facing Q is converted with this law.
+  qLaw?: 'rbjGain';
 }
 
 // `message` is shown to the user as-is: plain language, says what to change.

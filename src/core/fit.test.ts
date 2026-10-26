@@ -116,3 +116,29 @@ describe('fitProfile', () => {
     }
   });
 });
+
+describe('fitProfile with qLaw', () => {
+  const law: EqLimits = { ...limits, qLaw: 'rbjGain' };
+  const prof = (...bands: EqBand[]): EqProfile => ({ preamp: -12, bands });
+
+  it('accepts bands whose wire Q is in range and keeps the user Q', () => {
+    const r = fitProfile(prof(pk(6, 1000, 4)), law);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.profile.bands[0]!.q).toBe(4);
+  });
+
+  it('rejects when wire Q is above the device range', () => {
+    const r = fitProfile(prof(pk(12, 1000, 7)), law);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.errors[0]!.band).toBe(1);
+      expect(r.errors[0]!.message).toBe(
+        'Filter 1: Q 7 at +12.0 dB needs Q 13.97 on this device; the most it takes is 8. Lower the Q or the gain.',
+      );
+    }
+  });
+
+  it('does not correct shelves', () => {
+    expect(fitProfile(prof(b('LSC', 100, 6, 7)), law).ok).toBe(true);
+  });
+});

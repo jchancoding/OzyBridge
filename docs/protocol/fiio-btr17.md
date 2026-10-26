@@ -179,6 +179,10 @@ Data comes from devicePEQ hardware captures. All are untested with OzyBridge.
 | --- | --- | --- | --- | --- |
 | FiiO KA15 | 0x0104 | -12..12 | 7, 8, 9 | 10 |
 | SNOWSKY Melody | 0x0126 | -12..12 | 160, 161, 162 | 240 |
+| FiiO KA17 (report ID 1) | 0x0093 | -12..12 | 4, 8, 9 | 10 |
+| FiiO QX13 | 0x0128 | -24..12 | 160-169 | 240 |
+
+KA17 and QX13 realise a peaking band's Q as `Q_sent / A`, `A = 10^(|gain dB| / 40)` (devicePEQ measurements). OzyBridge sends `Q * A` and divides on read; `capabilities.q` is the wire range. Shelves need no correction: the device uses the Q-form RBJ shelf, as AutoEQ does. devicePEQ's shelf correction converts from a slope convention and must not be ported.
 
 Both captures report 10 bands and decode with our framing. Some models echo sets as `AA 0A` frames; these are not replies and are ignored.
 

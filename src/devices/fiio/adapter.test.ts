@@ -299,3 +299,22 @@ describe('pickFiioInterface', () => {
     expect(pickFiioInterface([iface(0x0088, [2])])).toBeNull();
   });
 });
+
+describe.each([
+  ['KA17', 0x0093, 1, 4],
+  ['QX13', 0x0128, 7, 160],
+])('Q compensation on %s', (name, productId, reportId, slot) => {
+  it('writes Q*A on PK bands, leaves shelf Q, returns user-facing Q', async () => {
+    const f = new FakeFiioHid({ productId, productName: name, reportId });
+    fakes.push(f);
+    f.active = slot;
+    const a = await connect(f);
+    const bands = FREQS.map((fr) => band(fr, 0, { q: 1 }));
+    bands[0] = band(32, 6, { q: 1 });
+    bands[1] = band(64, -12, { q: 2 });
+    bands[2] = band(125, 6, { type: 'LSC', q: 0.7 });
+    const out = await a.writeSlot(slot, { preamp: -6, bands });
+    expect(f.slot(slot).bands.map((x) => x.q).slice(0, 3)).toEqual([1.41, 3.99, 0.7]);
+    expect(out.bands.map((x) => x.q).slice(0, 3)).toEqual([1, 2, 0.7]);
+  });
+});
