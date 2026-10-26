@@ -60,54 +60,58 @@ export function App() {
   if (adapter) {
     const model = findFiioModel(adapter.info.vendorId, adapter.info.productId);
     return (
-      <main className="app screen">
-        {model?.untested && (
-          <aside className="untested-banner">
-            <p>{UNTESTED_NOTE}</p>
-            <a
-              href={deviceReportUrl({ name: model.name, productId: model.productId, firmware: adapter.info.firmware })}
-              target="_blank"
-              rel="noopener"
-            >
-              Report how it went
-            </a>
-          </aside>
-        )}
-        <Workspace adapter={adapter} />
-        <Footer />
+      <>
+        <main className="app screen">
+          {model?.untested && (
+            <aside className="untested-banner">
+              <p>{UNTESTED_NOTE}</p>
+              <a
+                href={deviceReportUrl({ name: model.name, productId: model.productId, firmware: adapter.info.firmware })}
+                target="_blank"
+                rel="noopener"
+              >
+                Report how it went
+              </a>
+            </aside>
+          )}
+          <Workspace adapter={adapter} />
+          <Footer />
+        </main>
         <Mascot />
-      </main>
+      </>
     );
   }
 
   return (
-    <main className="app screen">
-      <Stripes />
-      <h1 className="display">OzyBridge</h1>
-      <p className="message">Control your DAC&apos;s EQ from the browser. Close FiiO Control first, then connect.</p>
-      {sharedLink?.ok && (
-        <p className="message">
-          This link is the EQ &ldquo;{sharedLink.name}&rdquo;. Connect, and it will be previewed on screen and you choose which slot to write it to. Nothing is sent to the device until you confirm.
-        </p>
-      )}
-      {sharedLink && !sharedLink.ok && <p className="message error">{sharedLink.errors[0]}</p>}
-      <section className="supported-devices" aria-labelledby="supported-devices-heading">
-        <h2 id="supported-devices-heading" className="supported-devices__heading">Supported devices</h2>
-        <ul className="supported-devices__list">
-          {FIIO_MODELS.map((model) => (
-            <li key={model.productId}>{model.name}{model.untested ? ' (untested)' : ''}</li>
-          ))}
-        </ul>
-        <p className="supported-devices__note">{UNTESTED_NOTE}</p>
-        <p className="supported-devices__probe">
-          Have another FiiO device? Run the read-only <a href="?probe">device probe</a> and send us the report.
-        </p>
-      </section>
-      {disconnected && <p className="message">{disconnectedText(disconnected)}</p>}
-      <button className="btn-primary" onClick={connect}>CONNECT</button>
-      {error && <p className="message error">{error}</p>}
-      <Footer />
+    <>
+      <main className="app screen">
+        <Stripes />
+        <h1 className="display">OzyBridge</h1>
+        <p className="message">Control your DAC&apos;s EQ from the browser. Close FiiO Control first, then connect.</p>
+        {sharedLink?.ok && (
+          <p className="message">
+            This link is the EQ &ldquo;{sharedLink.name}&rdquo;. Connect, and it will be previewed on screen and you choose which slot to write it to. Nothing is sent to the device until you confirm.
+          </p>
+        )}
+        {sharedLink && !sharedLink.ok && <p className="message error">{sharedLink.errors[0]}</p>}
+        <section className="supported-devices" aria-labelledby="supported-devices-heading">
+          <h2 id="supported-devices-heading" className="supported-devices__heading">Supported devices</h2>
+          <ul className="supported-devices__list">
+            {FIIO_MODELS.map((model) => (
+              <li key={model.productId}>{model.name}{model.untested ? ' (untested)' : ''}</li>
+            ))}
+          </ul>
+          <p className="supported-devices__note">{UNTESTED_NOTE}</p>
+          <p className="supported-devices__probe">
+            Have another FiiO device? Run the read-only <a href="?probe">device probe</a> and send us the report.
+          </p>
+        </section>
+        {disconnected && <p className="message">{disconnectedText(disconnected)}</p>}
+        <button className="btn-primary" onClick={connect}>CONNECT</button>
+        {error && <p className="message error">{error}</p>}
+        <Footer />
+      </main>
       <Mascot />
-    </main>
+    </>
   );
 }
