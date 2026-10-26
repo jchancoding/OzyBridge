@@ -1,4 +1,4 @@
-import { useThemePref, type ThemePref } from './prefs';
+import { useMotionPref, useThemePref, type ThemePref } from './prefs';
 
 const font = (file: string) => `${import.meta.env.BASE_URL}fonts/${file}`;
 
@@ -10,6 +10,7 @@ const OPTIONS: { pref: ThemePref; label: string }[] = [
 
 export function Footer() {
   const [pref, setPref] = useThemePref();
+  const [motion, setMotion] = useMotionPref();
   return (
     <footer className="site-footer">
       <div className="theme-row">
@@ -18,6 +19,16 @@ export function Footer() {
           {OPTIONS.map((o) => (
             <button key={o.pref} type="button" className="btn-secondary" aria-pressed={pref === o.pref} onClick={() => setPref(o.pref)}>
               {o.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="theme-row">
+        <span className="label">MOTION</span>
+        <div role="group" aria-label="Motion" className="theme-group">
+          {(['on', 'off'] as const).map((m) => (
+            <button key={m} type="button" className="btn-secondary" aria-pressed={motion === m} onClick={() => setMotion(m)}>
+              {m.toUpperCase()}
             </button>
           ))}
         </div>

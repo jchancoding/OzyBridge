@@ -113,6 +113,15 @@ Scale (rem): `0.75` label, `0.875` body small, `1` body, `1.25` section, `1.75` 
 - **Index tags.** Small boxed numerals `01`–`10` on slots, in JetBrains Mono, like grid positions.
 - **Telemetry rules.** Thin tick-marked lines under section headers.
 
+## Background
+
+- Fixed `body::before` at `z-index: -2`: perspective grid in `--oz-line`, max 35% opacity, fading toward a mid-screen horizon, 8 s linear drift. Dark adds `body::after` scanlines (2 px period, max 3% white). Both `pointer-events: none`.
+- Chrome (`.sticky`, `.hud`, ok/info/busy notices) is glass: `--oz-glass` plus one blur. Error and confirm notices stay solid. Fallback to solid under `prefers-reduced-transparency`, `prefers-contrast: more`, or no `backdrop-filter`.
+
+## Mascot
+
+- Ozy walks in a fixed layer at `z-index: -1`, in front of the grid and behind all content. See `docs/design/phase-8-spec.md` section 4.
+
 ## Components
 
 - **Button, primary:** accent fill, white uppercase label, chamfered. Hover lightens 8%, active uses `--oz-accent-strong`.
@@ -130,6 +139,7 @@ Scale (rem): `0.75` label, `0.875` body small, `1` body, `1.25` section, `1.75` 
 - Easing: `cubic-bezier(0.2, 0, 0, 1)`. No spring, no bounce, no overshoot.
 - Screen transitions slide horizontally a short distance with a fade, like a menu change in WipeOut Pure.
 - Respect `prefers-reduced-motion`: replace slides with fades, disable stripe animation.
+- Ambient motion (grid drift, scanlines, mascot) stops under `prefers-reduced-motion` or when the footer Motion toggle is OFF (`data-motion='off'`, stored as `ozy-motion`).
 
 ## Iconography
 
@@ -149,7 +159,7 @@ Scale (rem): `0.75` label, `0.875` body small, `1` body, `1.25` section, `1.75` 
 
 ## Don't
 
-- No glassmorphism, neon glow, or heavy blur.
+- No neon glow. Blur only on sticky chrome (`--oz-blur`), never behind data (graph, band table, slot cards, inputs).
 - No dark full-screen backgrounds in light theme.
 - No more than one display-font line per screen.
 - No rounded corners.
