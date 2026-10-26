@@ -49,17 +49,19 @@ Steps:
 3. One-slot devices need a browser-side preset library (store many EQs, push one to the device). This is also the cross-device feature: one library, any device.
 4. Walkplay adapter ported from devicePEQ, read-only first. Needs a tester with a device.
 
-Exit: BTR13 verified by a tester, a preset library in use, and one non-FiiO adapter verified on hardware.
+Exit: BTR13 verified by a tester, a preset library in use (done in 7a), and one non-FiiO adapter verified on hardware.
 
 Done early (2026-10-27): `?probe`, a read-only page that reports any FiiO device's product ID, USB collections, band count, active slot, preamp and raw bands, for remote testers.
 
-Phase 7a quality of life, agreed 2026-10-27 (small executor tasks):
+Phase 7a (closed 2026-10-27, PRs #4-#10, 170 tests). Specs in `docs/agents/tasks/phase-7a-*.md`.
 
-- Export all slots as one JSON file.
-- Undo last write (keep the slot's previous profile in memory; one click restores it).
-- Shareable EQ links: name, preamp and bands encoded in the URL fragment (never sent to a server). Opening one offers to save or write it.
-- Compare: a slot card button overlays that slot's curve on the graph in `--oz-curve-2`.
-- Preset library: named EQs in browser storage, save from slot, drop onto slot, rename, delete, JSON backup. No APIs.
+- Quality of life: export all slots as JSON, one-level undo of the last write, shareable EQ links in the URL fragment, compare overlay, preset library in browser storage (`ozy-presets`). This covers step 3.
+- devicePEQ easy wins, all flagged `untested` with a landing caveat and a prefilled GitHub issue link ("Report how it went"): FiiO KA15, SNOWSKY Melody (config entries, tests decode devicePEQ's read captures), FiiO KA17 and QX13 (peaking Q correction `Q_wire = Q * 10^(|gain|/40)` in `src/core/qCompensation.ts`). Shelves are not corrected; see `docs/protocol/fiio-btr17.md`.
+- Held back for 7b: FiiO Oak Nano (8 bands, apparent +12 dB preamp offset), JadeAudio JA11 (disconnects on save, breaks read-back), and the ~25 FiiO entries without captures or known product IDs (devicePEQ sends `0x21` on K17/K19).
+- Not yet exercised in a browser against hardware. Smoke-test undo, share links and preset drop on the BTR17.
+- Lesson: executors launched as worktree runners still shared the main checkout and cross-committed. The planner must create each worktree itself and pass its absolute path.
+
+Phase 7b (on hold, needs owners): BTR13 and the held-back models via `?probe`, then one verified write each; promote models out of `untested` as GitHub device reports arrive; Walkplay adapter.
 
 Porting rule for other vendors: port devicePEQ handlers chip by chip into typed adapters, use its captures as test fixtures, keep our command allowlist and read-back. Do not copy its handlers wholesale (its BTR17 save is FiiO's factory reset).
 
@@ -78,7 +80,6 @@ Workflow tips gathered from r/ClaudeAI: give the model a reference screenshot an
 ## Backlog (not scheduled)
 
 - Squiglink integration: open the current EQ in Squiglink, or overlay a headphone's measured response (read-only, user-initiated, no runtime network by default).
-- Shareable EQ links (EQ encoded in the URL fragment, no server).
 - Monetisation stays non-intrusive: PayPal donation link in the footer; optional cosmetic skins or mascot variants later. No ads.
 
 Repo practice (2026-10-27): `main` is protected by a ruleset (PR required, CI `check` must pass, no force-push or deletion). Work on branches, merge with PR notes. MIT licence. Visitor counts via GoatCounter, cookie-free, dashboard behind the GoatCounter login.
