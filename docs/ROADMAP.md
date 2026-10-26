@@ -108,6 +108,13 @@ Result (2026-10-27): done. Executor: Sonnet 5.5 low, one chat resumed across thr
 
 Disconnect/reconnect handling, FiiO Control conflict detection, pacing tuning, static deploy (GitHub Pages or Cloudflare Pages).
 
+Progress (2026-10-27): executors Sonnet 5.5 low, specs `phase-6a`, `6b`, `6c`.
+
+- USER10 persistence: bench variant A (write, leave USER10 active) passed a power cycle. B and C also passed but wrote the same profile after A, so they prove nothing. Leaving the written slot active is the safe path.
+- Auto-reconnect is impossible: the BTR17 has no serial number, so Chrome revokes the HID permission on unplug. After a disconnect the app shows a message and the user clicks Connect.
+- FiiO Control conflict: connect errors map to a "close FiiO Control" message (`src/ui/connectMessages.ts`). Not tested on hardware.
+- Deploy: GitHub Pages workflow in `.github/workflows/pages.yml`.
+
 ### Later
 
 - More FiiO models via config entries (BTR13, BTR15, KA17, K19, etc.).

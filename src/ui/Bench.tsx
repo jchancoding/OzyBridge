@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import a2000 from '../core/__fixtures__/autoeq-a2000-10band.txt?raw';
 import { exportAutoEq, parseAutoEq } from '../core/autoeq';
-import type { EqProfile } from '../core/eq';
+import { profilesEqual, type EqProfile } from '../core/eq';
 import { exportFiioXml } from '../core/fiioXml';
 import { fitProfile } from '../core/fit';
 import { connectFiio, DEFAULT_FIIO_TIMING, type FiioAdapter } from '../devices/fiio/adapter';
@@ -12,6 +12,10 @@ import { requestFiioDevices } from '../transport/webhid';
 const TEST_SLOT = 169;
 const BACKUP_KEY = 'ozy-bench-user10-backup';
 const LOG_KEY = 'ozy-bench-log';
+const PERSIST_KEY = 'ozy-bench-persist';
+
+type Variant = 'A' | 'B' | 'C';
+interface PersistExpectation { variant: Variant; expected: EqProfile; expectedActive: number }
 
 function loadLog(): string[] {
   try {
@@ -52,6 +56,8 @@ export function Bench() {
   const [original, setOriginal] = useState<number | null>(null);
   const [backup, setBackup] = useState<EqProfile | null>(loadBackup);
   const [afterPreampMs, setAfterPreampMs] = useState(DEFAULT_FIIO_TIMING.afterPreampMs);
+  const [afterSaveMs, setAfterSaveMs] = useState(DEFAULT_FIIO_TIMING.afterSaveMs);
+  const [variant, setVariant] = useState<Variant>('A');
   const [busy, setBusy] = useState(false);
   const [log, setLog] = useState<string[]>(loadLog);
 
@@ -65,6 +71,7 @@ export function Bench() {
   };
   const clearLog = () => {
     sessionStorage.removeItem(LOG_KEY);
+    localStorage.removeItem(PERSIST_KEY);
     setLog([]);
   };
   const sayProfile = (p: EqProfile) => exportAutoEq(p).trimEnd().split('\n').forEach((l) => say(`   ${l}`));
@@ -104,7 +111,7 @@ export function Bench() {
         );
       }
       const a = await connectFiio(dev, {
-        timing: { afterPreampMs },
+        timing: { afterPreampMs, afterSaveMs },
         log: (dir, bytes) => say(`${dir === 'out' ? '>>' : '<<'} ${hex(bytes)}`),
       });
       a.onDisconnect(() => {
@@ -173,6 +180,36 @@ export function Bench() {
       setBackup(null);
     });
 
+  const persistWrite = (a: FiioAdapter) =>
+    run(`6. Persistence test, variant ${variant}`, async () => {
+      const parsed = parseAutoEq(a2000);
+      if (!parsed.ok) throw new Error(parsed.errors.map((e) => e.message).join(' '));
+      const fit = fitProfile(parsed.profile, a.capabilities);
+      if (!fit.ok) throw new Error(fit.errors.map((e) => e.message).join(' '));
+      await a.writeSlot(TEST_SLOT, fit.profile);
+      let expectedActive = TEST_SLOT;
+      if (variant === 'C') {
+        if (original === null) throw new Error('Run step 1 first.');
+        await a.setActiveSlot(original);
+        expectedActive = original;
+      }
+      const stored: PersistExpectation = { variant, expected: fit.profile, expectedActive };
+      localStorage.setItem(PERSIST_KEY, JSON.stringify(stored));
+      say(`UNPLUG NOW: variant ${variant}`);
+    });
+
+  const persistVerify = (a: FiioAdapter) =>
+    run('Verify after power cycle', async () => {
+      const raw = localStorage.getItem(PERSIST_KEY);
+      if (!raw) throw new Error('No stored persistence expectation.');
+      const exp = JSON.parse(raw) as PersistExpectation;
+      const active = await a.getActiveSlot();
+      const got = await a.readSlot(TEST_SLOT);
+      const bands = profilesEqual({ ...exp.expected, preamp: got.preamp }, got) ? 'PASS' : 'FAIL';
+      const preamp = profilesEqual({ ...got, preamp: exp.expected.preamp }, got) ? 'PASS' : 'FAIL';
+      say(`RESULT variant=${exp.variant} active=${active} bands=${bands} preamp=${preamp}`);
+    });
+
   const downloadXml = (a: FiioAdapter) =>
     run('Download USER10 as FiiO .xml', async () => {
       const p = await a.readSlot(TEST_SLOT);
@@ -203,6 +240,25 @@ export function Bench() {
           onChange={(e) => setAfterPreampMs(Number(e.target.value))}
         />
       </label>
+      <label className="bench-field">
+        Wait after save (ms), used by variant B
+        <input
+          type="number"
+          min={0}
+          step={100}
+          value={afterSaveMs}
+          disabled={adapter !== null}
+          onChange={(e) => setAfterSaveMs(Number(e.target.value))}
+        />
+      </label>
+      <label className="bench-field">
+        6. Persistence variant
+        <select value={variant} disabled={busy} onChange={(e) => setVariant(e.target.value as Variant)}>
+          <option value="A">A: leave USER10 active</option>
+          <option value="B">B: A with the wait after save above (set 3000 before Connect)</option>
+          <option value="C">C: switch back (control)</option>
+        </select>
+      </label>
       <div className="bench-row">
         <button className="btn-primary" disabled={busy || adapter !== null} onClick={connect}>Connect</button>
         <button className="btn-primary" disabled={!ready} onClick={() => adapter && probe(adapter)}>1. Read only</button>
@@ -210,6 +266,8 @@ export function Bench() {
         <button className="btn-primary" disabled={!ready || original === null || !backup} onClick={() => adapter && backup && oneBand(adapter, backup)}>3. One band</button>
         <button className="btn-primary" disabled={!ready || original === null || !backup} onClick={() => adapter && fullWrite(adapter)}>4. Full write</button>
         <button className="btn-primary" disabled={!ready || original === null || !backup} onClick={() => adapter && backup && restore(adapter, backup)}>5. Restore</button>
+        <button className="btn-primary" disabled={!ready || original === null || !backup} onClick={() => adapter && persistWrite(adapter)}>6. Persistence test</button>
+        <button className="btn-primary" disabled={!ready} onClick={() => adapter && persistVerify(adapter)}>Verify after power cycle</button>
         <button className="btn-primary" disabled={!ready} onClick={() => adapter && readUser10(adapter)}>Read USER10</button>
         <button className="btn-primary" disabled={!ready} onClick={() => adapter && downloadXml(adapter)}>Export .xml</button>
         <button className="btn-primary" disabled={log.length === 0} onClick={() => void navigator.clipboard.writeText(log.join('\n'))}>Copy log</button>
