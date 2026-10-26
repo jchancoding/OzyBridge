@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { connectFiio } from './devices/fiio/adapter';
 import { FIIO_MODELS, findFiioModel, pickFiioInterface } from './devices/fiio/models';
+import { connectWalkplay } from './devices/walkplay/adapter';
+import { WALKPLAY_MODELS, findWalkplayModel, pickWalkplayInterface } from './devices/walkplay/models';
 import type { DeviceAdapter } from './devices/types';
-import { isWebHidSupported, requestFiioDevices } from './transport/webhid';
+import { isWebHidSupported, requestConnectDevices } from './transport/webhid';
 import { Bench } from './ui/Bench';
 import { describeConnectError } from './ui/connectMessages';
 import { Footer } from './ui/Footer';
@@ -14,6 +16,7 @@ import { decodeShareFragment } from './core/shareLink';
 import { Stripes, Workspace } from './ui/Workspace';
 
 const UNTESTED_NOTE = 'Untested models use settings from devicePEQ hardware captures. Every write is read back and checked, but nobody has confirmed them with OzyBridge yet.';
+const WALKPLAY_NOTE = 'MOONDROP Marigold can be read. Writes stay off until someone confirms a save on the hardware.';
 const disconnectedText = (name: string) => `${name} disconnected. Plug it back in and click Connect. Chrome forgets the permission when the device is unplugged.`;
 
 export function App() {
@@ -22,9 +25,7 @@ export function App() {
   const [disconnected, setDisconnected] = useState<string | null>(null);
   const sharedLink = location.hash.startsWith('#eq=') ? decodeShareFragment(location.hash) : null;
 
-  const attach = async (device: Parameters<typeof connectFiio>[0]) => {
-    const a = await connectFiio(device);
-    const name = findFiioModel(a.info.vendorId, a.info.productId)?.name ?? 'your device';
+  const attach = async (a: DeviceAdapter, name: string) => {
     a.onDisconnect(() => {
       setAdapter(null);
       setError(null);
@@ -32,6 +33,18 @@ export function App() {
     });
     setDisconnected(null);
     setAdapter(a);
+  };
+
+  const attachFiio = async (device: Parameters<typeof connectFiio>[0]) => {
+    const a = await connectFiio(device);
+    const name = findFiioModel(a.info.vendorId, a.info.productId)?.name ?? 'your device';
+    await attach(a, name);
+  };
+
+  const attachWalkplayDevice = async (device: Parameters<typeof connectWalkplay>[0]) => {
+    const a = await connectWalkplay(device);
+    const name = findWalkplayModel(a.info.vendorId, a.info.productId)?.name ?? 'your device';
+    await attach(a, name);
   };
 
   if (!isWebHidSupported()) {
@@ -49,22 +62,28 @@ export function App() {
   const connect = async () => {
     setError(null);
     try {
-      const device = pickFiioInterface(await requestFiioDevices());
-      if (!device) return setError('No supported FiiO device was selected. Pick the control entry for your device.');
-      await attach(device);
+      const granted = await requestConnectDevices();
+      const walkplay = pickWalkplayInterface(granted);
+      if (walkplay) return void (await attachWalkplayDevice(walkplay));
+      const device = pickFiioInterface(granted);
+      if (!device) {
+        return setError('No supported device was selected. Pick the control entry for your DAC.');
+      }
+      await attachFiio(device);
     } catch (e) {
       setError(describeConnectError(e));
     }
   };
 
   if (adapter) {
-    const model = findFiioModel(adapter.info.vendorId, adapter.info.productId);
+    const walkplay = findWalkplayModel(adapter.info.vendorId, adapter.info.productId);
+    const model = findFiioModel(adapter.info.vendorId, adapter.info.productId) ?? walkplay;
     return (
       <>
         <main className="app screen">
           {model?.untested && (
             <aside className="untested-banner">
-              <p>{UNTESTED_NOTE}</p>
+              <p>{walkplay ? WALKPLAY_NOTE : UNTESTED_NOTE}</p>
               <a
                 href={deviceReportUrl({ name: model.name, productId: model.productId, firmware: adapter.info.firmware })}
                 target="_blank"
@@ -97,11 +116,11 @@ export function App() {
         <section className="supported-devices" aria-labelledby="supported-devices-heading">
           <h2 id="supported-devices-heading" className="supported-devices__heading">Supported devices</h2>
           <ul className="supported-devices__list">
-            {FIIO_MODELS.map((model) => (
-              <li key={model.productId}>{model.name}{model.untested ? ' (untested)' : ''}</li>
+            {[...FIIO_MODELS, ...WALKPLAY_MODELS].map((model) => (
+              <li key={`${model.name}-${model.productId}`}>{model.name}{model.untested ? ' (untested)' : ''}</li>
             ))}
           </ul>
-          <p className="supported-devices__note">{UNTESTED_NOTE}</p>
+          <p className="supported-devices__note">{UNTESTED_NOTE} {WALKPLAY_NOTE}</p>
           <p className="supported-devices__probe">
             Have another FiiO device? Run the read-only <a href="?probe">device probe</a> and send us the report.
           </p>
