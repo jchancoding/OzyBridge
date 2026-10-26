@@ -244,3 +244,7 @@ h1.display { font-size: 1.75rem; }
   text-decoration: none;
 }
 .site-footer__support a:hover { text-decoration: underline; }
+
+.preset-library { margin-top: var(--oz-6); }
+.preset-card { cursor: grab; }
+.preset-card .bar { margin: 0; }

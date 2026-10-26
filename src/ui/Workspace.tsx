@@ -6,11 +6,14 @@ import { exportFiioXml, parseFiioXml } from '../core/fiioXml';
 import { fitProfile } from '../core/fit';
 import { decodeShareFragment, encodeShareFragment } from '../core/shareLink';
 import { isFlat, matchSlotNames, parseSlotNames, renameSlot, serializeSlotNames, type SlotNames } from '../core/slotNames';
+import { addPreset, deletePreset, mergePresets, parsePresets, renamePreset, serializePresets, type Preset } from '../core/presets';
 import { commitNumber, inRange, parseDecimal, stepValue } from '../core/step';
 import type { DeviceAdapter } from '../devices/types';
 import { EqGraph } from './EqGraph';
+import { PresetLibrary, PRESET_DRAG_TYPE } from './PresetLibrary';
 
 const NAMES_KEY = 'ozy-slot-names';
+const PRESETS_KEY = 'ozy-presets';
 const GAIN_STEPS = [-1, -0.5, 0.5, 1];
 
 type Notice =
@@ -118,6 +121,7 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
   const [selected, setSelected] = useState(userSlots[0]?.id ?? 0);
   const [draft, setDraft] = useState<EqProfile | null>(null);
   const [names, setNames] = useState<SlotNames>(() => parseSlotNames(localStorage.getItem(NAMES_KEY)));
+  const [presets, setPresets] = useState<Preset[]>(() => parsePresets(localStorage.getItem(PRESETS_KEY)));
   const [notice, setNotice] = useState<Notice>(null);
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -159,6 +163,13 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
     setNames((prev) => {
       const next = f(prev);
       localStorage.setItem(NAMES_KEY, serializeSlotNames(next));
+      return next;
+    });
+
+  const updatePresets = (f: (prev: Preset[]) => Preset[]) =>
+    setPresets((prev) => {
+      const next = f(prev);
+      localStorage.setItem(PRESETS_KEY, serializePresets(next));
       return next;
     });
 
@@ -290,8 +301,38 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
     };
   }, []);
 
+  const writePreset = (slot: number, presetId: string) => {
+    const preset = presets.find((p) => p.id === presetId);
+    if (!preset) return;
+    const fit = fitProfile(preset.profile, cap);
+    if (!fit.ok) return setNotice({ kind: 'error', text: fit.errors.map((e) => e.message).join(' ') });
+    setSelected(slot);
+    setDraft(null);
+    requestWrite(slot, fit.profile, fit.notes.length ? ` ${fit.notes.join(' ')}` : '', preset.name);
+  };
+
+  const savePreset = () => {
+    if (!saved) return;
+    const now = new Date();
+    const name = slotName(selected) || `${product} slot ${Number(index(selected))}`;
+    updatePresets((l) => addPreset(l, { id: crypto.randomUUID(), name, profile: saved, createdAt: now.toISOString(), source: product }));
+    setNotice({ kind: 'ok', text: `Saved "${name}" to the preset library.` });
+  };
+
+  const loadPresets = (text: string) => {
+    const incoming = parsePresets(text);
+    if (incoming.length === 0) return setNotice({ kind: 'error', text: 'No valid presets found in that file.' });
+    updatePresets((l) => mergePresets(l, incoming));
+    setNotice({ kind: 'ok', text: `Loaded ${incoming.length} preset(s).` });
+  };
+
   const onDrop = (id: number) => (e: DragEvent) => {
     e.preventDefault();
+    const presetId = e.dataTransfer.getData(PRESET_DRAG_TYPE);
+    if (presetId) {
+      if (!busy) writePreset(id, presetId);
+      return;
+    }
     const f = e.dataTransfer.files[0];
     if (f && !busy) void importFile(id, f);
   };
@@ -485,6 +526,19 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
         <input ref={fileRef} type="file" accept=".txt,.xml" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void importFile(selected, f); }} />
         <input ref={restoreRef} type="file" accept=".json" hidden onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) { const parsed = parseSlotNames(await f.text()); updateNames(() => parsed); } }} />
       </div>
+
+      <PresetLibrary
+        presets={presets}
+        slotLabel={sel}
+        canSave={!!saved && !isFlat(saved)}
+        busy={busy}
+        onSave={savePreset}
+        onRename={(id, n) => updatePresets((l) => renamePreset(l, id, n))}
+        onDelete={(id) => updatePresets((l) => deletePreset(l, id))}
+        onWrite={(id) => writePreset(selected, id)}
+        onBackup={() => download(`ozybridge-presets-${new Date().toISOString().slice(0, 10)}.json`, serializePresets(presets), 'application/json')}
+        onLoad={loadPresets}
+      />
 
       {shown && (
         <section className="eq-view">
