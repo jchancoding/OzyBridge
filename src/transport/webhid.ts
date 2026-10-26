@@ -192,8 +192,18 @@ export function hasOutputReport(device: Pick<HIDDevice, 'collections'>, reportId
 
 // Chrome returns one HIDDevice per HID interface of the chosen product. The BTR17 command
 // collection is on usage page 0x01; filtering on it hides the MQA HID interface in the chooser.
+const FIIO_VENDOR_ID = 0x2972;
+// Moondrop Marigold. Kept off the FiiO-only chooser so ?bench cannot send FiiO frames to it.
+const WALKPLAY_VENDOR_ID = 0x35d8;
+
 export async function requestFiioDevices(): Promise<HIDDevice[]> {
-  return navigator.hid.requestDevice({ filters: [{ vendorId: 0x2972, usagePage: 0x01 }] });
+  return navigator.hid.requestDevice({ filters: [{ vendorId: FIIO_VENDOR_ID, usagePage: 0x01 }] });
+}
+
+export async function requestConnectDevices(): Promise<HIDDevice[]> {
+  return navigator.hid.requestDevice({
+    filters: [{ vendorId: FIIO_VENDOR_ID, usagePage: 0x01 }, { vendorId: WALKPLAY_VENDOR_ID }],
+  });
 }
 
 export async function requestFiioDevicesAnyInterface(): Promise<HIDDevice[]> {
