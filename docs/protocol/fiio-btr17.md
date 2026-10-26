@@ -157,10 +157,14 @@ If added later: read-only probe first, then set on the bench.
 - Every reply has sequence `00 00` and CRC byte `00`. The device does not fill either field.
 - No reply arrives to get `0x0B` (firmware) or to set `0x16` (switch preset) within 1 s, at least none with `BB 0B` headers. The adapter now sends sets blind and verifies with a get.
 - USER1 on our unit held bands at 31 and 62 Hz, not FiiO's 32 and 64 Hz reset defaults. The slot was probably edited before.
+- Round 2 (blind sets, raw input logging): set `0x16` takes effect, confirmed by a get 200 ms later. Band and preamp sets take effect, and read-back matched exactly for a one-band change, the 10-band A2000 file, and the restore. A full slot write takes about 4.5 s with the 2 s preamp wait.
+- Sets get no reply of any kind. About 16 ms after each `BB 0B` reply the device sends one all-zero report 7. It is a trailer, not an ack. `parseReply` ignores it.
+- Get `0x0B` gets nothing but that trailer. The BTR17 config sets `firmwareCmd: false`.
+- Chrome exposes the command collection as usage page `0x01`, usage `0x00` (in and out report 7), plus consumer control `0x0C/0x01` (in report 2) on the same HID device. The chooser filters on usage page `0x01`.
 
 ## Open questions
 
-1. Does set `0x16` take effect? Does anything (another header, another report ID) come back for sets? The bench now logs every input report raw.
-2. Does save `0x19` persist across a power cycle?
+1. (Answered in round 2.) Sets take effect, and nothing comes back for them.
+2. Does save `0x19` persist across a power cycle? Is the 2 s preamp wait needed for it?
 3. Is there a heartbeat on HID, and what frame? (Short capture.)
 4. Does the BLE link accept the same commands? (Later.)

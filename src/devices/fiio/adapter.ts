@@ -74,12 +74,14 @@ export async function connectFiio(device: HidLike, opts: ConnectOpts = {}): Prom
     if (count !== caps.maxBands) {
       throw new ProtocolError(`Device reports ${count} bands, expected ${caps.maxBands}`);
     }
-    try {
-      const fw = await get(CMD.FIRMWARE_VERSION);
-      const printable = fw.length > 0 && fw.every((b) => b >= 0x20 && b <= 0x7e);
-      firmware = printable ? String.fromCharCode(...fw) : [...fw].join('.');
-    } catch (e) {
-      if (!(e instanceof TransportTimeoutError)) throw e;
+    if (model.firmwareCmd) {
+      try {
+        const fw = await get(CMD.FIRMWARE_VERSION);
+        const printable = fw.length > 0 && fw.every((b) => b >= 0x20 && b <= 0x7e);
+        firmware = printable ? String.fromCharCode(...fw) : [...fw].join('.');
+      } catch (e) {
+        if (!(e instanceof TransportTimeoutError)) throw e;
+      }
     }
   } catch (e) {
     await transport.close().catch(() => {});

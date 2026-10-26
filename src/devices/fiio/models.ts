@@ -7,6 +7,7 @@ export interface FiioModel {
   productId: number;
   name: string;
   reportId: number;
+  firmwareCmd: boolean;
   capabilities: DeviceCapabilities;
 }
 
@@ -21,6 +22,7 @@ export const FIIO_MODELS: FiioModel[] = [
     productId: 0x0088,
     name: 'FiiO BTR17',
     reportId: 7,
+    firmwareCmd: false,
     capabilities: {
       maxBands: 10,
       filterTypes: ['PK', 'LSC', 'HSC'],

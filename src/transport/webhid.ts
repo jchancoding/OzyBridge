@@ -190,9 +190,10 @@ export function hasOutputReport(device: Pick<HIDDevice, 'collections'>, reportId
   return device.collections.some((c) => (c.outputReports ?? []).some((r) => r.reportId === reportId));
 }
 
-// Chrome returns one HIDDevice per HID interface of the chosen product.
+// Chrome returns one HIDDevice per HID interface of the chosen product. The BTR17 command
+// collection is on usage page 0x01; filtering on it hides the MQA HID interface in the chooser.
 export async function requestFiioDevices(): Promise<HIDDevice[]> {
-  return navigator.hid.requestDevice({ filters: [{ vendorId: 0x2972 }] });
+  return navigator.hid.requestDevice({ filters: [{ vendorId: 0x2972, usagePage: 0x01 }] });
 }
 
 export async function getGrantedFiioDevices(): Promise<HIDDevice[]> {

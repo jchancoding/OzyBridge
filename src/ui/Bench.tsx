@@ -115,6 +115,11 @@ export function Bench() {
       sayProfile(p);
     });
 
+  const readUser10 = (a: FiioAdapter) =>
+    run('Read USER10 (switches to it and back, keeps the backup)', async () => {
+      sayProfile(await a.readSlot(TEST_SLOT));
+    });
+
   const writeAndRestoreActive = async (a: FiioAdapter, p: EqProfile) => {
     try {
       sayProfile(await a.writeSlot(TEST_SLOT, p));
@@ -181,14 +186,15 @@ export function Bench() {
       <div className="bench-row">
         <button className="btn-primary" disabled={busy || adapter !== null} onClick={connect}>Connect</button>
         <button className="btn-primary" disabled={!ready} onClick={() => adapter && probe(adapter)}>1. Read only</button>
-        <button className="btn-primary" disabled={!ready || original === null} onClick={() => adapter && backUp(adapter)}>2. Back up USER10</button>
+        <button className="btn-primary" disabled={!ready || original === null || backup !== null} onClick={() => adapter && backUp(adapter)}>2. Back up USER10</button>
         <button className="btn-primary" disabled={!ready || original === null || !backup} onClick={() => adapter && backup && oneBand(adapter, backup)}>3. One band</button>
         <button className="btn-primary" disabled={!ready || original === null || !backup} onClick={() => adapter && fullWrite(adapter)}>4. Full write</button>
         <button className="btn-primary" disabled={!ready || original === null || !backup} onClick={() => adapter && backup && restore(adapter, backup)}>5. Restore</button>
+        <button className="btn-primary" disabled={!ready} onClick={() => adapter && readUser10(adapter)}>Read USER10</button>
         <button className="btn-primary" disabled={!ready} onClick={() => adapter && downloadXml(adapter)}>Export .xml</button>
         <button className="btn-primary" disabled={log.length === 0} onClick={() => void navigator.clipboard.writeText(log.join('\n'))}>Copy log</button>
       </div>
-      {backup && <p className="message">USER10 backup saved in this browser.</p>}
+      {backup && <p className="message">USER10 backup saved in this browser. It survives a page reload. Step 5 restores it.</p>}
       <pre className="bench-log">{log.join('\n')}</pre>
     </main>
   );

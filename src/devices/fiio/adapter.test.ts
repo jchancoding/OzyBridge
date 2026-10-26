@@ -1,9 +1,9 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { EqBand, EqProfile } from '../../core/eq';
 import { ProtocolError, UnsupportedDeviceError, WriteVerifyError } from '../types';
 import { connectFiio, DEFAULT_FIIO_TIMING } from './adapter';
 import { FakeFiioHid } from './fakeFiioHid';
-import { pickFiioInterface } from './models';
+import { FIIO_MODELS, pickFiioInterface } from './models';
 
 const FORBIDDEN = new Set([0x21, 0x1b, 0x1c, 0x30]);
 const fakes: FakeFiioHid[] = [];
@@ -36,16 +36,32 @@ async function connect(f: FakeFiioHid, extra = {}) {
   return connectFiio(f.asHid(), { timing: ZERO, hid: new EventTarget(), ...extra });
 }
 
+const FW_PID = 0xfffe;
+beforeAll(() => {
+  FIIO_MODELS.push({ ...FIIO_MODELS[0]!, productId: FW_PID, firmwareCmd: true });
+});
+afterAll(() => {
+  FIIO_MODELS.splice(FIIO_MODELS.findIndex((m) => m.productId === FW_PID), 1);
+});
+const fwFake = () => Object.assign(makeFake(), { productId: FW_PID });
+
 describe('connectFiio', () => {
-  it('reads band count and firmware', async () => {
+  it('reads only the band count on the BTR17, which does not answer firmware requests', async () => {
     const f = makeFake();
+    const a = await connect(f);
+    expect(a.info.firmware).toBeNull();
+    expect(f.sent.map((s) => s.cmd)).toEqual([0x18]);
+  });
+
+  it('reads firmware on models that support it', async () => {
+    const f = fwFake();
     const a = await connect(f);
     expect(a.info.firmware).toBe('1.2.3');
     expect(f.sent.map((s) => s.cmd)).toEqual([0x18, 0x0b]);
   });
 
   it('joins non-printable firmware bytes with dots', async () => {
-    const f = makeFake();
+    const f = fwFake();
     f.firmware = Uint8Array.of(1, 2, 3);
     expect((await connect(f)).info.firmware).toBe('1.2.3');
   });
@@ -59,7 +75,7 @@ describe('connectFiio', () => {
 
   it('connects with firmware null on firmware timeout', async () => {
     vi.useFakeTimers();
-    const f = makeFake();
+    const f = fwFake();
     f.silentCmds.add(0x0b);
     const p = connect(f);
     await vi.advanceTimersByTimeAsync(1000);
@@ -88,7 +104,7 @@ describe('connectFiio', () => {
     const f = makeFake();
     const log = vi.fn();
     await connect(f, { log });
-    expect(log.mock.calls.map((c) => c[0])).toEqual(['out', 'in', 'out', 'in']);
+    expect(log.mock.calls.map((c) => c[0])).toEqual(['out', 'in']);
   });
 });
 
