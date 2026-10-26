@@ -170,3 +170,13 @@ If added later: read-only probe first, then set on the bench.
 2. (Answered 2026-10-26.) FiiO persists with the same `0x19 [slot]`; bands then save, no preamp in between. Power-cycle verified on USER1. Rounds 3 and 4 above ran with FiiO Control open and are unreliable. Old question: how does FiiO Control persist BTR17 band edits? Capture it (see ROADMAP Phase 4 next step). Do not try `0x21` blind: FiiO uses it for factory reset, even though devicePEQ uses `0x21 [slotId]` as the BTR17 save.
 3. Is there a heartbeat on HID, and what frame? (Short capture.)
 4. Does the BLE link accept the same commands? (Later.)
+
+## Other models
+
+Data comes from devicePEQ hardware captures. All are untested with OzyBridge.
+
+| Model | Product ID | Gain/preamp dB | User slots | EQ-off slot |
+| --- | --- | --- | --- | --- |
+| FiiO KA15 | 0x0104 | -12..12 | 7, 8, 9 | 10 |
+| SNOWSKY Melody | 0x0126 | -12..12 | 160, 161, 162 | 240 |
+| FiiO Oak Nano | 0x4016 | -24..12 | 160 | none |

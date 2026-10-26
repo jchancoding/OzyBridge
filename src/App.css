@@ -39,6 +39,24 @@ body {
   color: var(--oz-text-2);
 }
 .supported-devices__list li { margin: 0; }
+.supported-devices__note {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--oz-text-3);
+}
+.untested-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--oz-3) var(--oz-4);
+  padding: var(--oz-3) var(--oz-4);
+  background: var(--oz-drop-wash);
+  border-left: var(--oz-1) solid var(--oz-drop);
+  color: var(--oz-text);
+  font-size: 0.875rem;
+}
+.untested-banner p { margin: 0; flex: 1 1 24rem; }
+.untested-banner a { color: var(--oz-accent-strong); font-weight: 600; text-decoration: underline; }
 .supported-devices__probe {
   margin: 0;
   font-size: 0.8125rem;

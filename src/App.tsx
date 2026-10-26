@@ -1,29 +1,32 @@
 import { useState } from 'react';
 import { connectFiio } from './devices/fiio/adapter';
-import { FIIO_MODELS, pickFiioInterface } from './devices/fiio/models';
+import { FIIO_MODELS, findFiioModel, pickFiioInterface } from './devices/fiio/models';
 import type { DeviceAdapter } from './devices/types';
 import { isWebHidSupported, requestFiioDevices } from './transport/webhid';
 import { Bench } from './ui/Bench';
 import { describeConnectError } from './ui/connectMessages';
 import { Footer } from './ui/Footer';
 import { Probe } from './ui/Probe';
+import { deviceReportUrl } from './ui/reportLink';
 import { Stripes, Workspace } from './ui/Workspace';
 
-const DISCONNECTED = 'BTR17 disconnected. Plug it back in and click Connect. Chrome forgets the permission when the device is unplugged.';
+const UNTESTED_NOTE = 'Untested models use settings from devicePEQ hardware captures. Every write is read back and checked, but nobody has confirmed them with OzyBridge yet.';
+const disconnectedText = (name: string) => `${name} disconnected. Plug it back in and click Connect. Chrome forgets the permission when the device is unplugged.`;
 
 export function App() {
   const [adapter, setAdapter] = useState<DeviceAdapter | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [disconnected, setDisconnected] = useState(false);
+  const [disconnected, setDisconnected] = useState<string | null>(null);
 
   const attach = async (device: Parameters<typeof connectFiio>[0]) => {
     const a = await connectFiio(device);
+    const name = findFiioModel(a.info.vendorId, a.info.productId)?.name ?? 'your device';
     a.onDisconnect(() => {
       setAdapter(null);
       setError(null);
-      setDisconnected(true);
+      setDisconnected(name);
     });
-    setDisconnected(false);
+    setDisconnected(null);
     setAdapter(a);
   };
 
@@ -43,14 +46,34 @@ export function App() {
     setError(null);
     try {
       const device = pickFiioInterface(await requestFiioDevices());
-      if (!device) return setError('No supported FiiO device was selected. Pick the BTR17 control entry.');
+      if (!device) return setError('No supported FiiO device was selected. Pick the control entry for your device.');
       await attach(device);
     } catch (e) {
       setError(describeConnectError(e));
     }
   };
 
-  if (adapter) return <main className="app screen"><Workspace adapter={adapter} /><Footer /></main>;
+  if (adapter) {
+    const model = findFiioModel(adapter.info.vendorId, adapter.info.productId);
+    return (
+      <main className="app screen">
+        {model?.untested && (
+          <aside className="untested-banner">
+            <p>{UNTESTED_NOTE}</p>
+            <a
+              href={deviceReportUrl({ name: model.name, productId: model.productId, firmware: adapter.info.firmware })}
+              target="_blank"
+              rel="noopener"
+            >
+              Report how it went
+            </a>
+          </aside>
+        )}
+        <Workspace adapter={adapter} />
+        <Footer />
+      </main>
+    );
+  }
 
   return (
     <main className="app screen">
@@ -61,14 +84,15 @@ export function App() {
         <h2 id="supported-devices-heading" className="supported-devices__heading">Supported devices</h2>
         <ul className="supported-devices__list">
           {FIIO_MODELS.map((model) => (
-            <li key={model.productId}>{model.name}</li>
+            <li key={model.productId}>{model.name}{model.untested ? ' (untested)' : ''}</li>
           ))}
         </ul>
+        <p className="supported-devices__note">{UNTESTED_NOTE}</p>
         <p className="supported-devices__probe">
           Have another FiiO device? Run the read-only <a href="?probe">device probe</a> and send us the report.
         </p>
       </section>
-      {disconnected && <p className="message">{DISCONNECTED}</p>}
+      {disconnected && <p className="message">{disconnectedText(disconnected)}</p>}
       <button className="btn-primary" onClick={connect}>CONNECT</button>
       {error && <p className="message error">{error}</p>}
       <Footer />
