@@ -1,0 +1,157 @@
+:root {
+  --oz-mascot-1: #D8C3A0;
+  --oz-mascot-2: #9C7F5C;
+  --oz-mascot-3: #3B2A1E;
+  --oz-mascot-4: #16110D;
+  --oz-mascot-5: var(--oz-accent);
+}
+
+:root[data-theme='dark'] {
+  --oz-mascot-3: #9C7F5C;
+}
+
+.mascot {
+  position: fixed;
+  bottom: 8px;
+  left: 0;
+  z-index: -1;
+  width: 72px;
+  height: 72px;
+  pointer-events: none;
+  animation: mascot-travel 64s linear infinite;
+}
+
+.mascot__flip {
+  width: 72px;
+  height: 72px;
+  animation: mascot-flip 64s steps(1, end) infinite;
+}
+
+.mascot svg {
+  display: block;
+}
+
+.mascot__f,
+.mascot__steam {
+  visibility: hidden;
+}
+
+.mascot__f--walk1,
+.mascot__f--walk2,
+.mascot__f--walk3,
+.mascot__f--walk4 {
+  animation: mascot-gate-walk 64s steps(1, end) infinite, mascot-step-walk 0.8s steps(1, end) infinite;
+}
+.mascot__f--walk1 { animation-name: mascot-gate-walk, mascot-step-1; }
+.mascot__f--walk2 { animation-name: mascot-gate-walk, mascot-step-2; }
+.mascot__f--walk3 { animation-name: mascot-gate-walk, mascot-step-3; }
+.mascot__f--walk4 { animation-name: mascot-gate-walk, mascot-step-4; }
+
+.mascot__f--sit {
+  animation: mascot-gate-sit 64s steps(1, end) infinite;
+}
+
+.mascot__f--tea1,
+.mascot__f--tea2 {
+  animation: mascot-gate-tea 64s steps(1, end) infinite, mascot-sip-a 8s steps(1, end) infinite;
+}
+.mascot__f--tea2 { animation-name: mascot-gate-tea, mascot-sip-b; }
+
+.mascot__f--gaze1,
+.mascot__f--gaze2 {
+  animation: mascot-gate-gaze 64s steps(1, end) infinite, mascot-flutter-a 1.6s steps(1, end) infinite;
+}
+.mascot__f--gaze2 { animation-name: mascot-gate-gaze, mascot-flutter-b; }
+
+.mascot__steam {
+  animation: mascot-gate-tea 64s steps(1, end) infinite, mascot-steam 2s steps(4, end) infinite;
+}
+
+@keyframes mascot-travel {
+  0% { transform: translateX(2vw); }
+  30% { transform: translateX(88vw); }
+  50% { transform: translateX(88vw); }
+  80% { transform: translateX(2vw); }
+  100% { transform: translateX(2vw); }
+}
+
+@keyframes mascot-flip {
+  0% { transform: scaleX(1); }
+  50% { transform: scaleX(-1); }
+}
+
+@keyframes mascot-gate-walk {
+  0% { visibility: visible; }
+  30% { visibility: hidden; }
+  50% { visibility: visible; }
+  80% { visibility: hidden; }
+}
+
+@keyframes mascot-gate-sit {
+  0% { visibility: hidden; }
+  30% { visibility: visible; }
+  33% { visibility: hidden; }
+  48% { visibility: visible; }
+  50% { visibility: hidden; }
+}
+
+@keyframes mascot-gate-tea {
+  0% { visibility: hidden; }
+  33% { visibility: visible; }
+  48% { visibility: hidden; }
+}
+
+@keyframes mascot-gate-gaze {
+  0% { visibility: hidden; }
+  80% { visibility: visible; }
+}
+
+@keyframes mascot-step-1 { 0% { opacity: 1; } 25% { opacity: 0; } }
+@keyframes mascot-step-2 { 0% { opacity: 0; } 25% { opacity: 1; } 50% { opacity: 0; } }
+@keyframes mascot-step-3 { 0% { opacity: 0; } 50% { opacity: 1; } 75% { opacity: 0; } }
+@keyframes mascot-step-4 { 0% { opacity: 0; } 75% { opacity: 1; } }
+
+@keyframes mascot-sip-a { 0% { opacity: 1; } 50% { opacity: 0; } }
+@keyframes mascot-sip-b { 0% { opacity: 0; } 50% { opacity: 1; } }
+
+@keyframes mascot-flutter-a { 0% { opacity: 1; } 50% { opacity: 0; } }
+@keyframes mascot-flutter-b { 0% { opacity: 0; } 50% { opacity: 1; } }
+
+@keyframes mascot-steam {
+  0% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(-3px); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mascot { animation: none; left: auto; right: 2vw; transform: none; }
+  .mascot__flip { animation: none; transform: none; }
+  .mascot__f, .mascot__steam { animation: none; }
+  .mascot__f--walk1 { visibility: visible; opacity: 1; }
+  .mascot__steam { display: none; }
+}
+
+:root[data-motion='off'] .mascot { animation: none; left: auto; right: 2vw; transform: none; }
+:root[data-motion='off'] .mascot__flip { animation: none; transform: none; }
+:root[data-motion='off'] .mascot__f,
+:root[data-motion='off'] .mascot__steam { animation: none; }
+:root[data-motion='off'] .mascot__f--walk1 { visibility: visible; opacity: 1; }
+:root[data-motion='off'] .mascot__steam { display: none; }
+
+body:has(.is-dragging) .mascot {
+  visibility: hidden;
+}
+
+h1,
+.message,
+.label,
+.hint,
+.section-title,
+.supported-devices,
+.site-footer {
+  position: relative;
+  background: var(--oz-bg);
+}
+
+.app {
+  padding-bottom: 96px;
+}

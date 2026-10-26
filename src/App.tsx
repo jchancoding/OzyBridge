@@ -6,6 +6,8 @@ import { isWebHidSupported, requestFiioDevices } from './transport/webhid';
 import { Bench } from './ui/Bench';
 import { describeConnectError } from './ui/connectMessages';
 import { Footer } from './ui/Footer';
+import { Mascot } from './ui/Mascot';
+import './ui/mascot.css';
 import { Probe } from './ui/Probe';
 import { deviceReportUrl } from './ui/reportLink';
 import { decodeShareFragment } from './core/shareLink';
@@ -73,6 +75,7 @@ export function App() {
         )}
         <Workspace adapter={adapter} />
         <Footer />
+        <Mascot />
       </main>
     );
   }
@@ -104,6 +107,7 @@ export function App() {
       <button className="btn-primary" onClick={connect}>CONNECT</button>
       {error && <p className="message error">{error}</p>}
       <Footer />
+      <Mascot />
     </main>
   );
 }
