@@ -82,7 +82,15 @@ Progress (2026-10-26): 4b adapter and 4c format exports done per `docs/agents/ta
 
 - `connectFiio` checks the band count on connect and refuses on a mismatch. Writes check limits before sending anything, follow FiiO's sequence, save with `0x19`, then read back and reject on a mismatch. `readSlot` restores the previously active slot. EQ off is `setActiveSlot(240)`. The BTR17 is a config entry in `src/devices/fiio/models.ts`.
 - Squiglink's export format is the same as AutoEQ's (checked in squig.link's `graphtool.js`). Two-channel Squiglink files (`Channel: L/R`) are rejected with a plain message. `exportAutoEq` can omit flat bands. `exportFiioXml` reproduces FiiO's file layout byte for byte.
-- Remaining: 4d bench check on the real BTR17 (read-only, then one band on USER10, then a full write, then restore), timing tuning, and answering protocol open questions 1 to 3. Also check that FiiO Control accepts our exported `.xml`.
+- 4d bench (`?bench`, `src/ui/Bench.tsx`) on the real BTR17: reads, slot switches, band and preamp writes all verified. Sets get no reply, so they are sent blind and verified by gets. The chooser shows one entry. Write time about 4.5 s is accepted by the user. Details in the protocol doc's "Bench results".
+- **Blocker:** band edits are lost on power cycle. The preamp persists. `0x19` is not enough for bands.
+
+Next step (fresh chat, Sonnet low or Composer, short):
+
+1. The user captures FiiO Control saving one band change on USER10 with `tools/capture/webhid-logger.js` and saves the dump as `captures/btr17-save.json`.
+2. The agent reads only the `out` frames from that file (for example `rg '"out"'`), finds the save sequence, and adds the command to `protocol.ts` (with a test vector) and to the write sequence in `adapter.ts`.
+3. The user reruns the bench power-cycle check once: Clear log, Connect, 1, 2, 4, unplug and replug, reload, Connect, 1, 5. In step 5, "USER10 before restore" must show A2000 (Filter 1 `LSC Fc 22 Hz Gain 6.6 dB`). Paste only the step 5 block.
+4. Write the Phase 4 result here and close the phase.
 
 ### Phase 5: UI (executor model, style guide is the spec)
 
@@ -117,3 +125,11 @@ Rules:
 - The planner reviews the diff and test output, not the whole codebase, then commits.
 - At the end of a phase, the planner writes the result into this file and the next phase starts in a fresh chat. Long chats re-send their whole history every turn, so fresh chats per phase keep cost down.
 - Do not switch models mid-chat. It discards the prompt cache.
+
+Budget (set by the user, 2026-10-26):
+
+- OzyControl may use at most 10% of the total Cursor budget, and less is better. About 4% was used through Phase 4. Keep a buffer: aim to finish Phases 5 and 6 within about 3% more.
+- One planner chat per phase with few turns. Hand off to a fresh chat when a chat gets long (large logs, many rounds).
+- Batch device tests: one bench script per question set, run once. The user pastes only the result lines asked for, not full frame logs.
+- Default to Sonnet low or Composer for planning and execution. Use Opus only for protocol decoding that cheaper models have failed at.
+- No speculative extras. Do only what the phase's exit criteria need.

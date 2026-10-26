@@ -162,9 +162,11 @@ If added later: read-only probe first, then set on the bench.
 - Get `0x0B` gets nothing but that trailer. The BTR17 config sets `firmwareCmd: false`.
 - Chrome exposes the command collection as usage page `0x01`, usage `0x00` (in and out report 7), plus consumer control `0x0C/0x01` (in report 2) on the same HID device. The chooser filters on usage page `0x01`, and it then lists a single BTR17 entry (confirmed).
 
+- Round 3 (power cycle): after writing A2000 to USER10 and saving with `0x19 [A9]`, then unplugging, USER10 kept the **new preamp (-6.9 dB) but the old bands**. `0x19` alone does not persist band edits on the BTR17. Band edits do take effect live until power is lost.
+
 ## Open questions
 
 1. (Answered in round 2.) Sets take effect, and nothing comes back for them.
-2. Does save `0x19` persist across a power cycle? Is the 2 s preamp wait needed for it?
+2. **Blocking:** how does FiiO Control persist BTR17 band edits? Capture it (see ROADMAP Phase 4 next step). Do not try `0x21` blind: FiiO uses it for factory reset, even though devicePEQ uses `0x21 [slotId]` as the BTR17 save.
 3. Is there a heartbeat on HID, and what frame? (Short capture.)
 4. Does the BLE link accept the same commands? (Later.)
