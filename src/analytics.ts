@@ -1,6 +1,7 @@
 const ENDPOINT = 'https://ozybridge.goatcounter.com/count';
 
 // Page-view count only: path and referrer, no cookies, never device or EQ data.
+// Uses GoatCounter's pixel endpoint instead of its third-party count.js script.
 export function countPageView(): void {
   if (!import.meta.env.PROD || navigator.doNotTrack === '1') return;
   const tool = ['probe', 'bench'].find((k) => new URLSearchParams(location.search).has(k));
@@ -9,5 +10,5 @@ export function countPageView(): void {
     r: document.referrer,
     rnd: String(Math.random()),
   });
-  navigator.sendBeacon?.(`${ENDPOINT}?${params}`);
+  new Image().src = `${ENDPOINT}?${params}`;
 }
