@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
+import { serializeSlotBackup } from '../core/backup';
 import { exportAutoEq, parseAutoEq } from '../core/autoeq';
 import type { EqBand, EqProfile, FilterType, Range } from '../core/eq';
 import { exportFiioXml, parseFiioXml } from '../core/fiioXml';
@@ -135,6 +136,17 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
   const index = (id: number) => String(userSlots.findIndex((s) => s.id === id) + 1).padStart(2, '0');
   const cmpId = compareId !== null && compareId !== selected && profiles[compareId] ? compareId : null;
   const compare = cmpId !== null ? { profile: profiles[cmpId] as EqProfile, label: slotName(cmpId) || `Slot ${index(cmpId)}` } : undefined;
+  const allRead = userSlots.every((s) => profiles[s.id] !== undefined);
+  const exportAll = () => {
+    if (!allRead) return;
+    const now = new Date();
+    const text = serializeSlotBackup({
+      product,
+      exportedAt: now.toISOString(),
+      slots: userSlots.map((s) => ({ id: s.id, label: s.label, name: slotName(s.id), profile: profiles[s.id] as EqProfile })),
+    });
+    download(`ozybridge-${product}-slots-${now.toISOString().slice(0, 10)}.json`, text, 'application/json');
+  };
   const resetKey = `${selected}:${undoCount}`;
   const anyBlocked = Object.values(blocked).some(Boolean);
   const setBlk = (k: string) => (b: boolean) => setBlocked((o) => (o[k] === b ? o : { ...o, [k]: b }));
@@ -422,8 +434,9 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
           </div>
         </section>
         <section className="action-group">
-          <h3 className="label">Slot names</h3>
+          <h3 className="label">Backup</h3>
           <div className="bar">
+            <button className="btn-secondary" disabled={!allRead} title="Saves every user slot's EQ and name to one file. Nothing is written to the device." onClick={exportAll}>Export all slots (.json)</button>
             <button className="btn-secondary" title="Saves only the slot names (kept in this browser) to a file. It does not save any EQ settings." onClick={() => download('ozybridge-slot-names.json', serializeSlotNames(names), 'application/json')}>Save slot names to file</button>
             <button className="btn-secondary" title="Loads slot names from a file saved earlier. Names only, no EQ settings are written to the device." onClick={() => restoreRef.current?.click()}>Load slot names from file</button>
           </div>
