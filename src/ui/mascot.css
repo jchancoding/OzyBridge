@@ -149,7 +149,7 @@ h1,
 .supported-devices,
 .site-footer {
   position: relative;
-  background: var(--oz-bg);
+  text-shadow: 0 0 1px var(--oz-bg), 0 0 3px var(--oz-bg), 0 0 6px var(--oz-bg);
 }
 
 .app {
