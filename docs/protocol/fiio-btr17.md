@@ -164,6 +164,8 @@ If added later: read-only probe first, then set on the bench.
 
 - Round 3 (power cycle): after writing A2000 to USER10 and saving with `0x19 [A9]`, then unplugging, USER10 kept the **new preamp (-6.9 dB) but the old bands**. `0x19` alone does not persist band edits on the BTR17. Band edits do take effect live until power is lost.
 
+- Round 4 (EQ off, 2026-10-27, read-only probe): with EQ switched off in the device's own settings, get `0x18` and get `0x16` still reply, and `0x16` reports slot 0 (Jazz), not 240. Get `0x15` (band read) gets only the all-zero trailer and no `BB 0B` reply, so the read times out. With EQ on and Jazz selected, all band reads and the preamp read reply normally, so built-in slots are readable. The adapter maps a timeout on band 0 to `EqDisabledError`.
+
 ## Open questions
 
 1. (Answered in round 2.) Sets take effect, and nothing comes back for them.
