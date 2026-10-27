@@ -23,7 +23,8 @@ body {
 }
 
 .intro {
-  max-width: 46rem;
+  width: 100%;
+  box-sizing: border-box;
   padding: var(--oz-4) var(--oz-6);
   background: var(--oz-glass);
   border: 1px solid var(--oz-line);
@@ -36,6 +37,8 @@ body {
 .intro a { color: var(--oz-accent-strong); font-weight: 600; }
 .intro strong { color: var(--oz-text); }
 .intro__heading { margin: 0; font-size: 1.5rem; line-height: 1.3; color: var(--oz-text); }
+.intro__heading a { color: var(--oz-accent-strong); text-decoration: none; }
+.intro__heading a:hover, .intro__heading a:focus-visible { text-decoration: underline; }
 .intro__highlight { color: var(--oz-accent-strong); }
 .intro__note { font-size: 0.875rem; color: var(--oz-text-3); }
 .supported-devices__subheading { border-bottom: 2px solid var(--oz-curve-2); display: inline-block; }
