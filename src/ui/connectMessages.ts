@@ -2,7 +2,7 @@ import { ProtocolError, UnsupportedDeviceError } from '../devices/types';
 import { TransportTimeoutError } from '../transport/webhid';
 
 const BUSY =
-  'Could not talk to the BTR17. Close FiiO Control (and any other tab using the device), then connect again.';
+  'The device did not reply. Close FiiO Control and any other tab or app using it, check the USB cable (try a direct port, no hub), then reload and connect again.';
 const BUSY_NAMES = ['NotAllowedError', 'NetworkError', 'InvalidStateError'];
 
 export function describeConnectError(e: unknown): string {
