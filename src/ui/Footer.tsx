@@ -1,4 +1,5 @@
 import { useMotionPref, useThemePref, type ThemePref } from './prefs';
+import { FORMSUBMIT_ID } from './submit';
 
 const font = (file: string) => `${import.meta.env.BASE_URL}fonts/${file}`;
 
@@ -33,6 +34,11 @@ export function Footer() {
           ))}
         </div>
       </div>
+      {FORMSUBMIT_ID && (
+        <p className="site-footer__support">
+          <a href="?feedback">Feedback</a>
+        </p>
+      )}
       <p className="site-footer__support">
         <a href="https://paypal.me/ozybridge" target="_blank" rel="noopener noreferrer">
           <span aria-hidden="true">☕</span> Support OzyBridge <span aria-hidden="true">❤️</span>
@@ -47,7 +53,7 @@ export function Footer() {
       <p>
         Not affiliated with or endorsed by FiiO or any other manufacturer. Product names are trademarks of their owners.
         Provided as is, without warranty. Writing EQ changes settings on your device; use at your own risk.
-        Runs entirely in your browser. No account, and your EQ data never leaves your device. Page visits are counted
+        Runs entirely in your browser. No account, and your EQ data stays on your device unless you send a device report. Page visits are counted
         anonymously with GoatCounter, without cookies.
       </p>
     </footer>

@@ -14,7 +14,7 @@ MVP target: FiiO BTR17 over WebHID. Later: other FiiO models, then other vendors
 
 - Vite, TypeScript (strict), React, plain CSS with tokens from `src/ui/tokens.css`.
 - Vitest for unit tests. No backend, no accounts, no cookies.
-- The only runtime network call is one cookie-free GoatCounter page view (`src/analytics.ts`): path and referrer, never device or EQ data. Do not add others.
+- Allowed runtime network calls: one cookie-free GoatCounter page view (`src/analytics.ts`) (path and referrer only, never device or EQ data), and user-initiated FormSubmit posts from `src/ui/submit.ts` (feedback and device reports). Reports contain only what the user sees on screen before sending. Nothing is sent automatically.
 - Chrome/Edge only (WebHID). Feature-detect and show a clear unsupported message elsewhere.
 
 ## Architecture boundaries
