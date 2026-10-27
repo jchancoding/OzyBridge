@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { EqBand, EqProfile } from '../../core/eq';
-import { ProtocolError, UnsupportedDeviceError, WriteVerifyError } from '../types';
+import { EqDisabledError, ProtocolError, UnsupportedDeviceError, WriteVerifyError } from '../types';
 import { connectFiio, DEFAULT_FIIO_TIMING } from './adapter';
 import { FakeFiioHid } from './fakeFiioHid';
 import { FIIO_MODELS, pickFiioInterface } from './models';
@@ -64,6 +64,13 @@ describe('connectFiio', () => {
     const f = fwFake();
     f.firmware = Uint8Array.of(1, 2, 3);
     expect((await connect(f)).info.firmware).toBe('1.2.3');
+  });
+
+  it('reports EqDisabledError when band reads get no reply', async () => {
+    const f = makeFake();
+    const a = await connect(f);
+    f.silentCmds.add(0x15);
+    await expect(a.readActiveProfile()).rejects.toBeInstanceOf(EqDisabledError);
   });
 
   it('rejects a wrong band count and closes', async () => {

@@ -2,6 +2,7 @@ import { profilesEqual, type EqProfile } from '../../core/eq';
 import { fromWireProfile, toWireProfile } from '../../core/qCompensation';
 import { HidTransport, TransportTimeoutError, type HidLike } from '../../transport/webhid';
 import {
+  EqDisabledError,
   ProtocolError,
   UnsupportedDeviceError,
   WriteVerifyError,
@@ -114,7 +115,13 @@ export async function connectFiio(device: HidLike, opts: ConnectOpts = {}): Prom
   const readWire = async (): Promise<EqProfile> => {
     const bands = [];
     for (let i = 0; i < caps.maxBands; i++) {
-      const p = await get(CMD.PEQ_PARAMS, Uint8Array.of(i));
+      let p: Uint8Array;
+      try {
+        p = await get(CMD.PEQ_PARAMS, Uint8Array.of(i));
+      } catch (e) {
+        if (i === 0 && e instanceof TransportTimeoutError) throw new EqDisabledError();
+        throw e;
+      }
       if (p.length !== 8 || p[0] !== i) throw new ProtocolError(`Band reply does not match band ${i}`);
       bands.push(decodeBandPayload(p).band);
     }

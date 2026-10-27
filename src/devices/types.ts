@@ -18,6 +18,15 @@ export class ProtocolError extends Error {
   }
 }
 
+// BTR17 with EQ switched off in the device settings: it still answers slot and count gets
+// but never answers band reads (bench 2026-10-27).
+export class EqDisabledError extends Error {
+  constructor() {
+    super('The device is not answering EQ reads. EQ is probably switched off on the device.');
+    this.name = 'EqDisabledError';
+  }
+}
+
 export class WriteVerifyError extends Error {
   constructor(public readonly expected: EqProfile, public readonly readBack: EqProfile) {
     super('Device read-back does not match what was written');

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ProtocolError, UnsupportedDeviceError } from '../devices/types';
+import { EqDisabledError, ProtocolError, UnsupportedDeviceError } from '../devices/types';
 import { TransportTimeoutError } from '../transport/webhid';
 import { describeConnectError } from './connectMessages';
 
@@ -12,6 +12,9 @@ describe('describeConnectError', () => {
   });
   it.each(['NotAllowedError', 'NetworkError', 'InvalidStateError'])('maps DOMException %s', (name) => {
     expect(describeConnectError(new DOMException('x', name))).toBe(BUSY);
+  });
+  it('explains EQ off on the device', () => {
+    expect(describeConnectError(new EqDisabledError())).toContain('Turn EQ on in the device settings');
   });
   it('keeps other DOMException messages', () => {
     expect(describeConnectError(new DOMException('odd', 'AbortError'))).toBe('odd');
