@@ -22,6 +22,29 @@ body {
   color: var(--oz-text-2);
 }
 
+.intro {
+  max-width: 46rem;
+  padding: var(--oz-4) var(--oz-6);
+  background: var(--oz-glass);
+  border: 1px solid var(--oz-line);
+  border-left: var(--oz-1) solid var(--oz-curve-2);
+  color: var(--oz-text-2);
+  font-size: 1.125rem;
+}
+.intro p { margin: var(--oz-3) 0 0; }
+.intro strong { color: var(--oz-text); }
+.intro__heading { margin: 0; font-size: 1.5rem; line-height: 1.3; color: var(--oz-text); }
+.intro__highlight { color: var(--oz-accent-strong); }
+.intro__note { font-size: 0.875rem; color: var(--oz-text-3); }
+.supported-devices__subheading { border-bottom: 2px solid var(--oz-curve-2); display: inline-block; }
+.supported-devices__risk {
+  margin: 0 0 var(--oz-2);
+  max-width: 46rem;
+  padding-left: var(--oz-3);
+  border-left: 2px solid var(--oz-drop);
+  font-size: 0.8125rem;
+  color: var(--oz-text-2);
+}
 .supported-devices { margin: 0; }
 .supported-devices__heading {
   margin: 0 0 var(--oz-2);
