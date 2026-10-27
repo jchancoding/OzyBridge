@@ -397,14 +397,16 @@ export function Verify() {
   return (
     <main className="app screen">
       <h1 className="display">Device test</h1>
-      <p className="message">
-        A short guided test: read your EQ, try one small change on a single slot, put it back, and share the result.
-        Close your device&apos;s own app first.
-      </p>
-      <p className="message">
-        At the end you send us the test report. We check it by hand, and once it passes, your device is added to the
-        supported devices list.
-      </p>
+      <section className="intro">
+        <p>
+          A short guided test: read your EQ, try one small change on a single slot, put it back, and share the result.
+          Close your device&apos;s own app first.
+        </p>
+        <p>
+          At the end you send us the test report. We check it by hand, and once it passes, your device is added to the
+          supported devices list.
+        </p>
+      </section>
 
       {phase !== 'idle' && phase !== 'review' && (
         <>

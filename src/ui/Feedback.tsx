@@ -37,10 +37,12 @@ export function Feedback() {
   return (
     <main className="app screen">
       <h1 className="display">Feedback</h1>
-      <p className="message">
-        Testing a device? Use the{' '}
-        <a href="?verify">device test</a> instead: it fills in the details for you.
-      </p>
+      <section className="intro">
+        <p>
+          Testing a device? Use the{' '}
+          <a href="?verify">device test</a> instead: it fills in the details for you.
+        </p>
+      </section>
       {sent ? (
         <p className="message">Thanks for your feedback.</p>
       ) : (

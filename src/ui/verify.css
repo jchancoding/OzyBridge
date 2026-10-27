@@ -28,8 +28,10 @@
   background: var(--oz-surface);
   padding: var(--oz-3);
   border-radius: var(--oz-radius);
+  border-left: var(--oz-1) solid var(--oz-curve-2);
   margin: 0;
 }
+.verify-checklist li[data-state='pass'] { color: var(--oz-accent-strong); }
 
 .verify-field {
   display: flex;

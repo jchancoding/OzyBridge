@@ -36,7 +36,7 @@ export function Footer() {
       </div>
       {FORMSUBMIT_ID && (
         <p className="site-footer__support">
-          <a href="?feedback">Feedback</a>
+          <a href="?feedback">Send us suggestions, questions or feedback!</a>
         </p>
       )}
       <p className="site-footer__support">

@@ -1,18 +1,48 @@
 # OzyBridge
 
-A login-free web control center for USB DACs and amps. First target: **FiiO BTR17**.
+A login-free web app that writes parametric EQ to USB DACs and amps. Drop in a Squiglink, AutoEQ, or PeqDB file, pick a slot, and it writes straight to the device. No format conversion, no account, no install.
 
-- Import and export AutoEQ / Squiglink parametric EQ and FiiO `.xml` presets.
-- Named EQ slots you can actually recognise.
-- Runs entirely in the browser over WebHID (Chrome or Edge). No account, no backend.
+Live: **https://jchancoding.github.io/OzyBridge/**
 
-**Status:** Phase 5 UI is done; Phase 6 (hardening and release) is in progress. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+OzyBridge started as a replacement for FiiO Control's EQ import and export. It now also lists other FiiO models and a first set of Walkplay devices. The FiiO BTR17 is the only model confirmed on hardware. The rest are untested until someone runs the device test.
+
+## What it does
+
+- Import and export Squiglink, AutoEQ, and PeqDB parametric EQ. FiiO `.xml` is an extra for FiiO devices.
+- Name slots, compare curves, keep a preset library in the browser, and share an EQ as a link.
+- Read every write back before calling it done. One-level undo of the last write.
+- Close the device's own app before connecting. Chrome and Edge only (WebHID).
+
+## Devices
+
+**Verified**
+
+- FiiO BTR17
+
+**Untested, writes enabled.** Settings come from public device captures. OzyBridge sends documented EQ commands, never firmware, and reads every write back. A bad result is a wrong EQ in one slot.
+
+- FiiO KA15
+- SNOWSKY Melody
+- FiiO KA17
+- FiiO QX13
+
+**Untested, read-only**
+
+- MOONDROP Marigold
+- ddHiFi DSP Cable - Memory
+- TANCHJIM-STARGATE II
+- CrinEar Protocol Max
+- EPZ TP35 Pro
+- TANCHJIM-SPACE PRO
+- NiceHCK Octave
+
+Have a DAC that is missing or untested? Open the site and use **device test** (`?verify`). It reads the EQ, tries one small change on a single slot, puts the previous EQ back, and sends the result only if you press Send.
 
 ## Requirements
 
-- **Browser:** Chrome or Edge (WebHID). Other browsers show an unsupported message.
-- **Device:** FiiO BTR17 over USB when using connect and EQ features.
-- **Development:** Node.js 22+ and npm (matches the GitHub Actions workflow).
+- **Browser:** Chrome or Edge on desktop. Other browsers get an unsupported message.
+- **Device:** USB DAC from the list above, for connect and EQ. The rest of the site works without one.
+- **Development:** Node.js 22+ and npm.
 
 ## Run locally
 
@@ -23,11 +53,14 @@ npm install
 npm run dev
 ```
 
-Open the URL Vite prints (usually `http://localhost:5173/`), then use **Connect** and pick the BTR17 in the browser’s device chooser.
+Open the URL Vite prints (usually `http://localhost:5173/`) and use **Connect**.
 
-Optional: add `?bench` for low-level adapter checks on hardware (`src/ui/Bench.tsx`, protocol notes in `docs/protocol/fiio-btr17.md`).
-
-Optional: add `?probe` for a read-only FiiO device report (`src/ui/Probe.tsx`) that users of unsupported models can copy back to us.
+| Query | Page |
+| --- | --- |
+| `?verify` | Guided device test and report |
+| `?feedback` | Feedback form |
+| `?bench` | Low-level adapter checks on hardware |
+| `?probe` | Redirects to `?verify` |
 
 ## Develop
 
@@ -39,20 +72,21 @@ Optional: add `?probe` for a read-only FiiO device report (`src/ui/Probe.tsx`) t
 | `npm run build` | Typecheck and production build to `dist/` |
 | `npm run preview` | Serve the production build locally |
 
-Docs:
-
-- [`docs/ROADMAP.md`](docs/ROADMAP.md) for phases and model routing
+- [`context.md`](context.md) for the current state of the repo
+- [`docs/ROADMAP.md`](docs/ROADMAP.md) for phase history
 - [`docs/protocol/`](docs/protocol/) for device protocol notes
 - [`docs/design/STYLEGUIDE.md`](docs/design/STYLEGUIDE.md) for visual design
 - [`AGENTS.md`](AGENTS.md) for AI agent rules
 
-## Deploy (GitHub Pages)
+## Deploy
 
 Workflow: [`.github/workflows/pages.yml`](.github/workflows/pages.yml).
 
-1. In the repo on GitHub: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+1. On GitHub: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
 2. Push to `main`. CI runs tests, builds `dist/`, and deploys.
 
-The app is fully static: no backend, no runtime network calls. After Pages is enabled, the site is typically at:
+The site is static. There is no app backend. In production, a page view goes to [GoatCounter](https://www.goatcounter.com/) (path and referrer, no cookies, no EQ data). Feedback and device reports are sent only when you press Send, through [FormSubmit](https://formsubmit.co/).
 
-**https://jchancoding.github.io/OzyBridge/**
+## Licence
+
+[MIT](LICENSE). Protocol knowledge is derived in part from [jeromeof/devicePEQ](https://github.com/jeromeof/devicePEQ) (0BSD). Not affiliated with FiiO or any other manufacturer.

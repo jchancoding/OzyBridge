@@ -225,10 +225,12 @@ export function Bench() {
   const ready = adapter !== null && !busy;
   return (
     <main className="app">
-      <p className="message">
+      <section className="intro">
+        <p>
         Bench check for the BTR17. Close FiiO Control first. Run the steps in order and stop at the first failure.
         Only USER10 is written, and step 5 puts it back.
-      </p>
+        </p>
+      </section>
       <label className="bench-field">
         Wait after preamp (ms)
         <input

@@ -32,6 +32,8 @@ body {
   font-size: 1.125rem;
 }
 .intro p { margin: var(--oz-3) 0 0; }
+.intro p:first-child { margin-top: 0; }
+.intro a { color: var(--oz-accent-strong); font-weight: 600; }
 .intro strong { color: var(--oz-text); }
 .intro__heading { margin: 0; font-size: 1.5rem; line-height: 1.3; color: var(--oz-text); }
 .intro__highlight { color: var(--oz-accent-strong); }
@@ -137,7 +139,7 @@ body {
 .label { margin: 0; font-size: 0.875rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--oz-text-2); border-bottom: 1px solid var(--oz-line); padding-bottom: var(--oz-1); }
 .unit { font-size: 0.875rem; color: var(--oz-text-3); }
 .hint { margin: 0; font-size: 0.9375rem; color: var(--oz-text-2); }
-.hud { display: flex; align-items: center; gap: var(--oz-4); padding: var(--oz-3) var(--oz-4); background: var(--oz-surface); border: 1px solid var(--oz-line); }
+.hud { display: flex; align-items: center; gap: var(--oz-4); padding: var(--oz-3) var(--oz-4); background: var(--oz-surface); border: 1px solid var(--oz-line); border-left: var(--oz-1) solid var(--oz-curve-2); }
 .hud-dot { width: 8px; height: 8px; background: var(--oz-ok); }
 .hud .btn-secondary { margin-left: auto; }
 .btn-secondary { background: var(--oz-surface); color: var(--oz-text); border: 1px solid var(--oz-line-strong); border-radius: var(--oz-radius); padding: var(--oz-2) var(--oz-4); font: 600 0.9375rem var(--oz-font-ui); letter-spacing: 0.04em; cursor: pointer; }
@@ -166,7 +168,10 @@ body {
 .slot-actions button { flex: 1; }
 .slot-actions .btn-secondary[aria-pressed='true'] { border-color: var(--oz-curve-2); color: var(--oz-curve-2); }
 .graph-thumb .graph-curve { stroke-width: 1.5; }
-.eq-view { display: flex; flex-direction: column; gap: var(--oz-3); }
+.eq-view { display: flex; flex-direction: column; gap: var(--oz-3); padding-left: var(--oz-3); border-left: var(--oz-1) solid var(--oz-curve-2); }
+.action-group .label { border-bottom-color: var(--oz-curve-2); }
+.hud-title { color: var(--oz-accent-strong); }
+.bench-log { border-left: var(--oz-1) solid var(--oz-curve-2); }
 .preamp { display: flex; align-items: center; gap: var(--oz-2); }
 .bands { border-collapse: collapse; background: var(--oz-surface); }
 .bands th { text-align: left; font-size: 0.875rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--oz-text-2); padding: var(--oz-2); }
@@ -203,7 +208,7 @@ h1.display, .hud-title { font-family: var(--oz-font-display); text-transform: up
 h1.display { font-size: 1.75rem; }
 .hud-title { font-size: 1.25rem; }
 .message { font-size: 1.0625rem; }
-.section-title { margin: var(--oz-2) 0 0; font-size: 1.25rem; font-weight: 600; }
+.section-title { display: inline-block; margin: var(--oz-2) 0 0; padding-bottom: var(--oz-1); border-bottom: 2px solid var(--oz-curve-2); font-size: 1.25rem; font-weight: 600; color: var(--oz-text); }
 .hud-item { font-size: 0.9375rem; color: var(--oz-text-2); }
 .toggle { font-weight: 700; }
 .toggle-on { border-color: var(--oz-ok); }
@@ -219,8 +224,8 @@ h1.display { font-size: 1.75rem; }
 .notice-confirm { border-left-color: var(--oz-warn); background: var(--oz-warn-wash); }
 .notice-busy .stripes i { background: var(--oz-signal); }
 
-.help { background: var(--oz-surface); border: 1px solid var(--oz-line); padding: var(--oz-3) var(--oz-4); font-size: 1.0625rem; }
-.shared-preview { background: var(--oz-surface); border: 1px solid var(--oz-line); padding: var(--oz-3) var(--oz-4); font-size: 1.0625rem; display: flex; flex-direction: column; gap: var(--oz-2); }
+.help { background: var(--oz-surface); border: 1px solid var(--oz-line); border-left: var(--oz-1) solid var(--oz-curve-2); padding: var(--oz-3) var(--oz-4); font-size: 1.0625rem; }
+.shared-preview { background: var(--oz-surface); border: 1px solid var(--oz-line); border-left: var(--oz-1) solid var(--oz-curve-2); padding: var(--oz-3) var(--oz-4); font-size: 1.0625rem; display: flex; flex-direction: column; gap: var(--oz-2); }
 .shared-preview p { margin: 0; }
 .help ol { margin: var(--oz-2) 0 0; padding-left: var(--oz-6); display: flex; flex-direction: column; gap: var(--oz-1); }
 .actions { display: flex; flex-wrap: wrap; gap: var(--oz-6); align-items: flex-start; }
