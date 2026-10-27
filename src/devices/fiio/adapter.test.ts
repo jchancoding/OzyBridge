@@ -73,6 +73,26 @@ describe('connectFiio', () => {
     await expect(a.readActiveProfile()).rejects.toBeInstanceOf(EqDisabledError);
   });
 
+  it('hops through another user slot when reading from a built-in preset', async () => {
+    const f = makeFake();
+    const a = await connect(f);
+    await a.setActiveSlot(0);
+    f.sent.length = 0;
+    await a.readSlot(165);
+    const switches = f.sent.filter((s) => s.cmd === 0x16 && s.kind === 'set').map((s) => s.payload[0]);
+    expect(switches).toEqual([160, 165, 0]);
+  });
+
+  it('does not hop when a user slot is already active', async () => {
+    const f = makeFake();
+    const a = await connect(f);
+    await a.setActiveSlot(160);
+    f.sent.length = 0;
+    await a.readSlot(165);
+    const switches = f.sent.filter((s) => s.cmd === 0x16 && s.kind === 'set').map((s) => s.payload[0]);
+    expect(switches).toEqual([165, 160]);
+  });
+
   it('rejects a wrong band count and closes', async () => {
     const f = makeFake();
     f.bandCount = 5;

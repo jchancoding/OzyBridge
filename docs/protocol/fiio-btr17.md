@@ -166,6 +166,8 @@ If added later: read-only probe first, then set on the bench.
 
 - Round 4 (EQ off, 2026-10-27, read-only probe): with EQ switched off in the device's own settings, get `0x18` and get `0x16` still reply, and `0x16` reports slot 0 (Jazz), not 240. Get `0x15` (band read) gets only the all-zero trailer and no `BB 0B` reply, so the read times out. With EQ on and Jazz selected, all band reads and the preamp read reply normally, so built-in slots are readable. The adapter maps a timeout on band 0 to `EqDisabledError`.
 
+- Round 5 (read USER10 with Jazz active, 2026-10-27): the `0x16` switch to USER10 is acknowledged by a get, and the preamp read returns USER10's value (-8 dB), but band reads return Jazz's bands. With a user slot active, the same read returns USER10's real bands. Hypothesis: a switch from a built-in preset loads only the preamp. `readSlot` therefore hops via another user slot first (untested on hardware until the hop fix is verified).
+
 ## Open questions
 
 1. (Answered in round 2.) Sets take effect, and nothing comes back for them.

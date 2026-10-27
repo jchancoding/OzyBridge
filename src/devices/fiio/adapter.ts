@@ -193,6 +193,13 @@ export async function connectFiio(device: HidLike, opts: ConnectOpts = {}): Prom
         const prev = await getActive();
         let result: EqProfile;
         try {
+          // BTR17 quirk (bench 2026-10-27): switching from a built-in preset straight to a user slot loads
+          // that slot's preamp but leaves the built-in preset's bands readable. Hopping via another user slot loads them.
+          const userIds = caps.slots.filter((s) => s.writable).map((s) => s.id);
+          if (!userIds.includes(prev)) {
+            const hop = userIds.find((u) => u !== id);
+            if (hop !== undefined) await setActive(hop);
+          }
           await setActive(id);
           result = await readProfile();
         } catch (e) {
