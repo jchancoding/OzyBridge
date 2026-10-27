@@ -177,7 +177,7 @@ If added later: read-only probe first, then set on the bench.
 - FiiO listens for unsolicited `0x16` reports (preset changed on the device) and re-reads bands and preamp when one arrives.
 - For the BTR15 adapter, FiiO's preset switch sends `0x16` and then waits 1000 ms, consistent with the settle delay in round 5.
 - Our 2026-10-26 capture shows get `0x1A` replying `00` while band reads worked, so the reply meaning on the BTR17 is unconfirmed.
-- `0x1A` is not in OzyBridge's allowed set. Next step, if wanted: add get `0x1A` only, read it with EQ on and off on the device, then decide.
+- Round 6 (node-hid, 2026-10-27, get only): with EQ on, get `0x1A` replies `00` and `0x16` reports the real slot. With EQ switched off on the device, get `0x1A` gets **no reply**, `0x16` reports `00`, and band reads get no reply. On the BTR17 the reply value carries no meaning. A missing reply means EQ is off. Get `0x1A` is allowed. Set `0x1A` is not.
 
 ## Open questions
 
