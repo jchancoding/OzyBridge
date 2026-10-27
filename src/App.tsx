@@ -43,7 +43,7 @@ export function App() {
 
   const attachWalkplayDevice = async (device: Parameters<typeof connectWalkplay>[0]) => {
     const a = await connectWalkplay(device);
-    const name = findWalkplayModel(a.info.vendorId, a.info.productId)?.name ?? 'your device';
+    const name = findWalkplayModel(a.info.vendorId, a.info.productId, a.info.productName)?.name ?? 'your device';
     await attach(a, name);
   };
 
@@ -83,7 +83,7 @@ export function App() {
   const untestedWalk = WALKPLAY_MODELS.filter((m) => m.untested);
 
   if (adapter) {
-    const walkplay = findWalkplayModel(adapter.info.vendorId, adapter.info.productId);
+    const walkplay = findWalkplayModel(adapter.info.vendorId, adapter.info.productId, adapter.info.productName);
     const model = findFiioModel(adapter.info.vendorId, adapter.info.productId) ?? walkplay;
     return (
       <>

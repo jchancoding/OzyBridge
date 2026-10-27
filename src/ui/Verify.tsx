@@ -64,7 +64,7 @@ function pickTestSlot(adapter: DeviceAdapter): Promise<number> {
 }
 
 function writesEnabled(adapter: DeviceAdapter): boolean {
-  return findWalkplayModel(adapter.info.vendorId, adapter.info.productId) === undefined &&
+  return findWalkplayModel(adapter.info.vendorId, adapter.info.productId, adapter.info.productName) === undefined &&
     adapter.capabilities.slots.some((s) => s.writable);
 }
 
@@ -168,7 +168,7 @@ export function Verify() {
     const walk = pickWalkplayInterface(granted);
     if (walk) {
       const a = await connectWalkplay(walk);
-      const model = findWalkplayModel(a.info.vendorId, a.info.productId)!;
+      const model = findWalkplayModel(a.info.vendorId, a.info.productId, a.info.productName)!;
       return {
         kind: 'adapter',
         adapter: a,
