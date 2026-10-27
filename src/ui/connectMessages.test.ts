@@ -4,7 +4,7 @@ import { TransportTimeoutError } from '../transport/webhid';
 import { describeConnectError } from './connectMessages';
 
 const BUSY =
-  'Could not talk to the BTR17. Close FiiO Control (and any other tab using the device), then connect again.';
+  'The device did not reply. Close FiiO Control and any other tab or app using it, check the USB cable (try a direct port, no hub), then reload and connect again.';
 
 describe('describeConnectError', () => {
   it('maps timeouts to the busy message', () => {
