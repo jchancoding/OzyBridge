@@ -16,9 +16,11 @@ export const CMD = {
   GLOBAL_GAIN: 0x17,
   PEQ_COUNT: 0x18,
   PEQ_SAVE: 0x19,
+  PEQ_SWITCH: 0x1a,
 } as const;
 
-export const ALLOWED_GET: ReadonlySet<number> = new Set([0x0b, 0x15, 0x16, 0x17, 0x18]);
+// 0x1A (EQ on/off) is get-only until its set is verified on hardware.
+export const ALLOWED_GET: ReadonlySet<number> = new Set([0x0b, 0x15, 0x16, 0x17, 0x18, 0x1a]);
 export const ALLOWED_SET: ReadonlySet<number> = new Set([0x15, 0x16, 0x17, 0x19]);
 
 export class ForbiddenCommandError extends Error {
