@@ -21,6 +21,14 @@ import { FORMSUBMIT_ID, submitForm } from './submit';
 import './verify.css';
 
 const STEP_ORDER: StepId[] = ['probe', 'read', 'write', 'readback', 'replug', 'restore'];
+const STEP_LABEL: Record<StepId, string> = {
+  probe: 'Identify device',
+  read: 'Read your EQ',
+  write: 'Write a test change',
+  readback: 'Read it back',
+  replug: 'Survives unplug and replug',
+  restore: 'Put your EQ back',
+};
 const hex4 = (n: number) => `0x${n.toString(16).toUpperCase().padStart(4, '0')}`;
 
 function deviceStatus(
@@ -91,23 +99,31 @@ export function Verify() {
   const [sent, setSent] = useState(false);
   const [copied, setCopied] = useState(false);
   const [sendFailed, setSendFailed] = useState(false);
+  const [activity, setActivity] = useState<{ step: StepId; text: string } | null>(null);
 
   const stepState = useCallback(
     (id: StepId): 'pending' | 'running' | 'pass' | 'fail' | 'skipped' => {
+      if (activity?.step === id) return 'running';
       const s = report.steps.find((x) => x.id === id);
-      if (!s) return phase === 'idle' ? 'pending' : 'pending';
+      if (!s) return 'pending';
       if (s.result === 'pass') return 'pass';
       if (s.result === 'fail') return 'fail';
       if (s.result === 'skipped') return 'skipped';
       return 'pending';
     },
-    [report.steps, phase],
+    [report.steps, activity],
   );
+  const visibleSteps = STEP_ORDER.filter(
+    (id) => id !== 'probe' || report.steps.find((s) => s.id === 'probe')?.result !== 'skipped',
+  );
+  const doneCount = visibleSteps.filter((id) => ['pass', 'fail'].includes(stepState(id))).length;
+  const slotLabel = (id: number) => adapter?.capabilities.slots.find((s) => s.id === id)?.label ?? 'the custom slot';
 
   const fullReport = useMemo(() => ({ ...report, notes }), [report, notes]);
   const reportText = useMemo(() => formatReport(fullReport), [fullReport]);
 
   const finishReview = (steps: DeviceReport['steps'], dev: DeviceReport['device']) => {
+    setActivity(null);
     setReport((r) => ({ ...r, device: dev, steps }));
     setPhase('review');
   };
@@ -131,6 +147,7 @@ export function Verify() {
       }
     }
     if (didWrite && bk !== null && sid !== null && a) {
+      setActivity({ step: 'restore', text: 'Putting your EQ back and checking it...' });
       try {
         await a.writeSlot(sid, bk);
         next = setStep(next, 'restore', 'pass');
@@ -222,6 +239,7 @@ export function Verify() {
     const sid = await pickTestSlot(a);
     setSlotId(sid);
     let readProfile: EqProfile;
+    setActivity({ step: 'read', text: 'Reading your EQ from the device...' });
     try {
       readProfile = await a.readSlot(sid);
       setBackup(readProfile);
@@ -243,6 +261,7 @@ export function Verify() {
 
     const test = testPreset(a.capabilities, readProfile);
     setPreset(test);
+    setActivity(null);
     setReport((r) => ({ ...r, steps: next }));
     setPhase('write-prompt');
   };
@@ -282,11 +301,9 @@ export function Verify() {
     }
   };
 
-  const skipWrite = () => {
-    let next = report.steps;
-    next = setStep(setStep(next, 'write', 'skipped', 'User skipped'), 'readback', 'skipped');
-    setReport((r) => ({ ...r, steps: next }));
-    finishReview(next, report.device);
+  const cancel = async () => {
+    await adapter?.disconnect().catch(() => {});
+    location.reload();
   };
 
   const continueWrite = async () => {
@@ -295,10 +312,12 @@ export function Verify() {
     setPhase('running');
     let next = report.steps;
     const dev = report.device;
+    setActivity({ step: 'write', text: 'Writing the test change and reading it back. This takes a few seconds...' });
     try {
       await adapter.writeSlot(slotId, preset);
       next = setStep(next, 'write', 'pass');
       next = setStep(next, 'readback', 'pass');
+      setActivity(null);
       setWroteTest(true);
       setReport((r) => ({ ...r, steps: next }));
       setPhase('replug');
@@ -332,6 +351,7 @@ export function Verify() {
       }
       const a = conn.adapter;
       setAdapter(a);
+      setActivity({ step: 'replug', text: 'Checking the test change survived the replug...' });
       const read = await a.readSlot(sid ?? (await pickTestSlot(a)));
       if (test && profilesEqual(read, test)) {
         next = setStep(next, 'replug', 'pass');
@@ -340,6 +360,7 @@ export function Verify() {
       }
       setReport((r) => ({ ...r, steps: next, device: dev }));
       if (bk !== null && sid !== null && didWrite) {
+        setActivity({ step: 'restore', text: 'Putting your EQ back and checking it...' });
         try {
           await a.writeSlot(sid, bk);
           next = setStep(next, 'restore', 'pass');
@@ -380,13 +401,21 @@ export function Verify() {
         A short guided test: read your EQ, try one small change on a single slot, put it back, and share the result.
         Close your device&apos;s own app first.
       </p>
+      <p className="message">
+        At the end you send us the test report. We check it by hand, and once it passes, your device is added to the
+        supported devices list.
+      </p>
 
       {phase !== 'idle' && phase !== 'review' && (
-        <ol className="verify-checklist" aria-label="Test progress">
-          {STEP_ORDER.map((id) => (
-            <li key={id} data-state={stepState(id)}>{id}</li>
-          ))}
-        </ol>
+        <>
+          <progress className="verify-progress" max={visibleSteps.length} value={doneCount} aria-label="Test progress" />
+          <ol className="verify-checklist">
+            {visibleSteps.map((id) => (
+              <li key={id} data-state={stepState(id)}>{STEP_LABEL[id]}</li>
+            ))}
+          </ol>
+          {activity && <p className="message" role="status">{activity.text}</p>}
+        </>
       )}
 
       {phase === 'idle' && (
@@ -396,11 +425,12 @@ export function Verify() {
       {phase === 'write-prompt' && slotId !== null && (
         <div className="verify-field">
           <p className="message">
-            This will write a small test change to slot {slotId}, then put your EQ back.
+            Next, OzyBridge writes one small test change to {slotLabel(slotId)}, checks it, and later puts
+            your EQ back exactly as it was.
           </p>
           <div className="bench-row">
             <button className="btn-primary" type="button" disabled={busy} onClick={continueWrite}>Continue</button>
-            <button className="btn-secondary" type="button" disabled={busy} onClick={skipWrite}>Skip writing</button>
+            <button className="btn-secondary" type="button" disabled={busy} onClick={cancel}>Cancel test</button>
           </div>
         </div>
       )}
@@ -435,7 +465,7 @@ export function Verify() {
             <a className="btn-secondary verify-back" href="/">Done</a>
           </div>
           {sent && (
-            <p className="message">Thanks. This is how devices get marked as supported.</p>
+            <p className="message">Thanks. We&apos;ll check your report and add the device to the supported list once it passes.</p>
           )}
           {sendFailed && <p className="message error">Could not send. Copy the report instead.</p>}
         </>

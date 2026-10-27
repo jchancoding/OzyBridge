@@ -11,6 +11,14 @@
 .verify-checklist li[data-state='pending']::marker { content: '○ '; }
 .verify-checklist li[data-state='running']::marker { content: '… '; }
 
+.verify-progress {
+  width: 100%;
+  max-width: 32rem;
+  height: 6px;
+  accent-color: var(--oz-accent);
+}
+.verify-checklist li[data-state='running'] { color: var(--oz-text); font-weight: 600; }
+
 .verify-report {
   width: 100%;
   max-width: 48rem;
