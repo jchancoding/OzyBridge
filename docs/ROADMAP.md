@@ -23,7 +23,7 @@ FiiO BTR17 over WebHID, live at https://jchancoding.github.io/OzyBridge/ via `.g
 - Safety: save is `0x19 [slot]`. `0x21` is FiiO's factory reset (devicePEQ misuses it as a save) and is forbidden.
 - Write order: preamp, then all bands, then `0x19`. Sets get no reply; every write is verified by gets. About 4.5 s per slot.
 - Persistence: leave the written slot active. Switching back before unplug lost USER10's bands.
-- Import never alters a file to make it fit. Too many bands, out-of-range values or unsupported filter types are rejected with plain reasons. Fitting only rounds, pads and lowers the preamp when the curve passes 0 dB.
+- Import never alters a file to make it fit. Too many bands, out-of-range values or unsupported filter types are rejected with plain reasons. Fitting only rounds and pads. It never changes the preamp: when the curve can pass 0 dB it returns a clipping warning with a suggested preamp, and the UI shows it (verified on a BTR17 2026-10-27: a -2 dB preamp with a +5.8 dB band stays at -2 dB). Import all slots restores a backup made by Export all slots.
 - Slot names are browser-side, keyed by a preamp+band fingerprint (`src/core/slotNames.ts`). The BTR17 stores no names.
 - No auto-reconnect: the BTR17 has no USB serial, so Chrome drops the permission on unplug.
 - FiiO Control's public bundle (also copied in devicePEQ's `fiio-js-capture/`) is the source for per-model slots, limits and pacing. Read it with narrow searches only.

@@ -1,4 +1,6 @@
-import type { EqBand, EqProfile, FilterType } from './eq';
+import type { EqBand, EqLimits, EqProfile, FilterType } from './eq';
+import { profilesEqual } from './eq';
+import { fitProfile } from './fit';
 
 export interface BackupSlot { id: number; label: string; name: string; profile: EqProfile }
 export interface SlotBackup { app: 'OzyBridge'; kind: 'slot-backup'; version: 1; product: string; exportedAt: string; slots: BackupSlot[] }
@@ -77,4 +79,43 @@ export function parseSlotBackup(text: string): ParseBackupResult {
     ok: true,
     backup: { app: 'OzyBridge', kind: 'slot-backup', version: 1, product: raw.product as string, exportedAt: raw.exportedAt as string, slots },
   };
+}
+
+export interface RestoreItem { id: number; name: string; profile: EqProfile; changed: boolean; notes: string[]; warnings: string[] }
+export type RestorePlan = { ok: true; items: RestoreItem[] } | { ok: false; errors: string[] };
+
+// Checks a whole backup against the device before anything is written. Any problem rejects the lot,
+// so a restore never leaves the device half done because of a file error.
+export function planBackupImport(
+  backup: SlotBackup,
+  product: string,
+  slotIds: number[],
+  limits: EqLimits,
+  current: Record<number, EqProfile>,
+): RestorePlan {
+  if (backup.product !== product) {
+    return { ok: false, errors: [`This backup is for ${backup.product}, but the connected device is ${product}.`] };
+  }
+  const errors: string[] = [];
+  const items: RestoreItem[] = [];
+  const seen = new Set<number>();
+  for (const s of backup.slots) {
+    const at = s.label || `Slot ${s.id}`;
+    if (!slotIds.includes(s.id)) { errors.push(`${at}: this device has no user slot ${s.id}.`); continue; }
+    if (seen.has(s.id)) { errors.push(`${at}: slot ${s.id} appears twice in the file.`); continue; }
+    seen.add(s.id);
+    const fit = fitProfile(s.profile, limits);
+    if (!fit.ok) { fit.errors.forEach((e) => errors.push(`${at}: ${e.message}`)); continue; }
+    const now = current[s.id];
+    items.push({
+      id: s.id,
+      name: s.name,
+      profile: fit.profile,
+      changed: !now || !profilesEqual(now, fit.profile),
+      notes: fit.notes,
+      warnings: fit.warnings,
+    });
+  }
+  if (items.length === 0 && errors.length === 0) errors.push('This backup has no slots.');
+  return errors.length ? { ok: false, errors } : { ok: true, items };
 }

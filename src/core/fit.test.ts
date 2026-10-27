@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { flatBand, profilesEqual } from './eq';
 import type { EqBand, EqLimits, EqProfile } from './eq';
-import { fitProfile } from './fit';
+import { clipCheck, fitProfile } from './fit';
 import { logFrequencies, profileResponseDb } from './response';
 
 const limits: EqLimits = {
@@ -78,11 +78,11 @@ describe('fitProfile', () => {
     if (!r.ok) expect(r.errors).toHaveLength(3);
   });
 
-  it('rejects when preamp would exceed device range', () => {
+  it('still accepts an EQ whose safe preamp is below the device range, with a warning', () => {
     const bands = Array.from({ length: 4 }, () => pk(12));
     const r = fitProfile({ preamp: 0, bands }, limits);
-    expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.errors[0]?.message).toContain('of preamp to avoid clipping');
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.warnings[0]).toContain('Clipping risk');
   });
 
   it('pads with disabled bands', () => {
@@ -101,19 +101,50 @@ describe('fitProfile', () => {
     expect(profilesEqual(r.profile, ref)).toBe(true);
   });
 
-  it('lowers preamp only when needed', () => {
+  it('never changes the preamp, and warns when the curve can clip', () => {
     const r = fitProfile({ preamp: 0, bands: [pk(6)] }, limits);
     expect(r.ok).toBe(true);
     if (r.ok) {
-      expect(r.profile.preamp).toBeLessThanOrEqual(-6);
-      expect(r.notes.some((n) => n.startsWith('Preamp lowered from 0 dB to'))).toBe(true);
+      expect(r.profile.preamp).toBe(0);
+      expect(r.warnings).toHaveLength(1);
+      expect(r.warnings[0]).toContain('Clipping risk');
+      expect(r.warnings[0]).toContain('-6.0 dB or lower');
+      expect(r.notes.some((n) => n.startsWith('Preamp lowered'))).toBe(false);
     }
     const k = fitProfile({ preamp: -10, bands: [pk(6)] }, limits);
     expect(k.ok).toBe(true);
     if (k.ok) {
       expect(k.profile.preamp).toBe(-10);
-      expect(k.notes.some((n) => n.startsWith('Preamp lowered'))).toBe(false);
+      expect(k.warnings).toEqual([]);
     }
+  });
+
+  it('keeps a user-chosen preamp that is too high (the -2 dB case) and only warns', () => {
+    const r = fitProfile({ preamp: -2, bands: [pk(5.8)] }, limits);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.profile.preamp).toBe(-2);
+      expect(r.warnings[0]).toContain('-5.8 dB or lower');
+    }
+  });
+
+  it('rounds the preamp to the device step', () => {
+    const r = fitProfile({ preamp: -6.93, bands: [pk(0)] }, limits);
+    expect(r.ok && r.profile.preamp).toBe(-6.9);
+  });
+
+  it('rejects a preamp outside the device range', () => {
+    expect(fitProfile({ preamp: 12.5, bands: [pk(0)] }, limits).ok).toBe(false);
+    expect(fitProfile({ preamp: -25, bands: [pk(0)] }, limits).ok).toBe(false);
+  });
+});
+
+describe('clipCheck', () => {
+  it('suggests the highest safe preamp, floored at the device minimum', () => {
+    expect(clipCheck({ preamp: 0, bands: [pk(6)] }, limits)?.suggested).toBe(-6);
+    expect(clipCheck({ preamp: -6, bands: [pk(6)] }, limits)).toBeNull();
+    const huge = Array.from({ length: 10 }, () => pk(12));
+    expect(clipCheck({ preamp: 0, bands: huge }, limits)?.suggested).toBe(-24);
   });
 });
 
