@@ -20,8 +20,22 @@ import {
   parseReply,
 } from './protocol';
 
-export interface FiioTiming { bandGapMs: number; setGapMs: number; afterPreampMs: number; afterSaveMs: number }
-export const DEFAULT_FIIO_TIMING: FiioTiming = { bandGapMs: 100, setGapMs: 200, afterPreampMs: 2000, afterSaveMs: 500 };
+export interface FiioTiming {
+  bandGapMs: number;
+  setGapMs: number;
+  afterPreampMs: number;
+  afterSaveMs: number;
+  // BTR17 (node-hid bench 2026-10-27): after a 0x16 switch, band reads return the previous slot's bands
+  // until about 500-600 ms after the switch. The preamp updates at once. Extra wait on top of setGapMs.
+  slotSettleMs: number;
+}
+export const DEFAULT_FIIO_TIMING: FiioTiming = {
+  bandGapMs: 100,
+  setGapMs: 200,
+  afterPreampMs: 2000,
+  afterSaveMs: 500,
+  slotSettleMs: 600,
+};
 
 export interface ConnectOpts {
   timing?: Partial<FiioTiming>;
@@ -194,6 +208,7 @@ export async function connectFiio(device: HidLike, opts: ConnectOpts = {}): Prom
         let result: EqProfile;
         try {
           await setActive(id);
+          await sleep(timing.slotSettleMs);
           result = await readProfile();
         } catch (e) {
           await setActive(prev).catch(() => {});
@@ -208,6 +223,7 @@ export async function connectFiio(device: HidLike, opts: ConnectOpts = {}): Prom
         const wire = toWireProfile(profile, caps.qLaw, qStep);
         guard(id, wire);
         await setActive(id);
+        await sleep(timing.slotSettleMs);
         // FiiO Control (capture 2026-10-26) saves right after the last band, with no preamp set in between.
         await set(CMD.GLOBAL_GAIN, encodeGain(profile.preamp), timing.afterPreampMs);
         for (let i = 0; i < profile.bands.length; i++) {

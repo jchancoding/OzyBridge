@@ -166,6 +166,8 @@ If added later: read-only probe first, then set on the bench.
 
 - Round 4 (EQ off, 2026-10-27, read-only probe): with EQ switched off in the device's own settings, get `0x18` and get `0x16` still reply, and `0x16` reports slot 0 (Jazz), not 240. Get `0x15` (band read) gets only the all-zero trailer and no `BB 0B` reply, so the read times out. With EQ on and Jazz selected, all band reads and the preamp read reply normally, so built-in slots are readable. The adapter maps a timeout on band 0 to `EqDisabledError`.
 
+- Round 5 (node-hid harness `scripts/`, 2026-10-27): after a `0x16` switch, the `0x16` get and the preamp read update at once, but band reads keep returning the previous slot's bands until about 500 to 600 ms after the switch (stale at 500 ms, correct at 600 ms, 8 of 8 trials each). This holds for user-to-user and built-in-to-user switches alike. A read that starts early can come back half old, half new. The adapter waits `slotSettleMs` (600 ms) on top of `setGapMs` (200 ms) before reading or writing a slot. Verified: `readSlot` over all ten user slots matches long-wait reference reads, starting from Jazz and from USER1.
+
 ## Open questions
 
 1. (Answered in round 2.) Sets take effect, and nothing comes back for them.
