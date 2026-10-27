@@ -111,13 +111,21 @@ export function App() {
       <main className="app screen">
         <Stripes />
         <h1 className="display">OzyBridge</h1>
-        <p className="message">
-          OzyBridge puts your USB DAC&apos;s EQ in the browser. Drop in an AutoEQ, Squiglink or PeqDB file, pick a slot,
-          done. No app, no account. Close your device&apos;s own app first, then connect.
-        </p>
-        <p className="message">
-          Import and export parametric EQ, name and compare slots, keep a preset library, and share an EQ as a link.
-        </p>
+        <section className="intro" aria-labelledby="intro-heading">
+          <h2 id="intro-heading" className="intro__heading">
+            Bring your EQ to your DAC, <span className="intro__highlight">without the vendor-app friction.</span>
+          </h2>
+          <p>
+            OzyBridge was built to replace FiiO Control&apos;s clunky EQ import and export flow. Drop in a parametric EQ
+            from Squiglink, AutoEQ or PeqDB, choose a device slot, and write it straight to your USB DAC.{' '}
+            <strong>No format conversion, no account, no app.</strong>
+          </p>
+          <p>
+            Import and export standard parametric EQ files, name and compare slots, keep a preset library, and share an
+            EQ with a link. Every write is read back and verified.
+          </p>
+          <p className="intro__note">Close your device&apos;s own app before connecting.</p>
+        </section>
         {sharedLink?.ok && (
           <p className="message">
             This link is the EQ &ldquo;{sharedLink.name}&rdquo;. Connect, and it will be previewed on screen and you choose which slot to write it to. Nothing is sent to the device until you confirm.
@@ -147,6 +155,13 @@ export function App() {
                   <li key={`${model.name}-w`}>{model.name} (read-only)</li>
                 ))}
               </ul>
+              {untestedFiio.length > 0 && (
+                <p className="supported-devices__risk">
+                  Writable untested devices can be tried at your own risk. OzyBridge only sends documented EQ commands,
+                  never touches firmware, and reads every write back. The realistic worst case is a wrong EQ in one slot,
+                  which you can undo here or reset in the vendor app.
+                </p>
+              )}
             </>
           )}
           <h3 className="supported-devices__subheading">Get your device supported</h3>
