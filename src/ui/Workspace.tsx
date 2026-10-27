@@ -9,6 +9,7 @@ import { isFlat, matchSlotNames, parseSlotNames, renameSlot, serializeSlotNames,
 import { addPreset, deletePreset, mergePresets, parsePresets, renamePreset, serializePresets, type Preset } from '../core/presets';
 import { commitNumber, inRange, parseDecimal, stepValue } from '../core/step';
 import type { DeviceAdapter } from '../devices/types';
+import { describeConnectError } from './connectMessages';
 import { EqGraph } from './EqGraph';
 import './motion.css';
 import { PresetLibrary, PRESET_DRAG_TYPE } from './PresetLibrary';
@@ -183,7 +184,7 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
       const r = await fn();
       setNotice(typeof r === 'string' ? { kind: 'ok', text: r } : { kind: 'ok', text: r.text, undo: r.undo });
     } catch (e) {
-      setNotice({ kind: 'error', text: e instanceof Error ? e.message : String(e) });
+      setNotice({ kind: 'error', text: describeConnectError(e) });
     } finally {
       setBusy(false);
     }
