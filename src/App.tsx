@@ -132,6 +132,19 @@ export function App() {
           </p>
         )}
         {sharedLink && !sharedLink.ok && <p className="message error">{sharedLink.errors[0]}</p>}
+        <section className="intro verify-cta" aria-labelledby="verify-cta-heading">
+          <h2 id="verify-cta-heading" className="intro__heading">
+            <a href="?verify">Get your device supported: Run &amp; Submit a Verification Test &rarr;</a>
+          </h2>
+          <p>
+            Got a DAC that&apos;s untested or missing from the list? The test takes about two minutes, reads your EQ,
+            tries one small change on a single slot, puts everything back, and sends us the result. One passing test is
+            usually enough for us to mark a device as supported.
+          </p>
+          <p className="intro__note">
+            We&apos;re working hard to add more devices. Every test report speeds that up.
+          </p>
+        </section>
         <section className="supported-devices" aria-labelledby="supported-devices-heading">
           <h2 id="supported-devices-heading" className="supported-devices__heading">Supported devices</h2>
           {verifiedFiio.length + verifiedWalk.length > 0 && (
@@ -164,16 +177,6 @@ export function App() {
               )}
             </>
           )}
-          <h3 className="supported-devices__subheading">Get your device supported</h3>
-          <p className="supported-devices__probe">
-            Got a DAC that&apos;s untested or missing from the list? Run the{' '}
-            <a href="?verify">device test</a>. It takes about two minutes, reads your EQ, tries one small change on a
-            single slot, puts everything back, and sends us the result. One passing test is usually enough for us to mark
-            a device as supported.
-          </p>
-          <p className="supported-devices__note">
-            We&apos;re working hard to add more devices. Every test report speeds that up.
-          </p>
         </section>
         {disconnected && <p className="message">{disconnectedText(disconnected)}</p>}
         <button className="btn-primary" onClick={connect}>CONNECT</button>
