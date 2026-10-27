@@ -12,7 +12,10 @@ export const WALKPLAY_VENDOR_IDS = [WALKPLAY_VENDOR_ID, WALKPLAY_VENDOR_ID_3302]
 
 export interface WalkplayModel {
   vendorId: number;
-  productId: number;
+  /** Exact product ID. When absent, the model matches by `productName` instead. */
+  productId?: number;
+  /** USB product name, matched case-insensitively. Moondrop shares one vendor ID across models. */
+  productName?: string;
   name: string;
   untested?: true;
   capabilities: DeviceCapabilities;
@@ -95,15 +98,45 @@ export const WALKPLAY_MODELS: WalkplayModel[] = [
     untested: true,
     capabilities: caps(10, ['LSC', 'PK', 'HSC'], { min: -10, max: 10 }),
   },
+  // Moondrop models listed by name in the Moondrop tool and devicePEQ. Same 0x4B band read as the Marigold.
+  // USB product IDs are unknown, so these match by product name. Read-only.
+  ...(
+    [
+      ['DAWN PRO2', ['LSC', 'PK', 'HSC']],
+      ['FreeDSP Pro', ['LSC', 'PK', 'HSC']],
+      ['FreeDSP Mini', ['LSC', 'PK', 'HSC']],
+      ['MOONRIVER 3', ['LSC', 'PK', 'HSC']],
+      ['DHA15', ['LSC', 'PK', 'HSC']],
+      ['Deco Audio System', ['LSC', 'PK', 'HSC']],
+      ['INN Deco75-DH Audio', ['LSC', 'PK', 'HSC']],
+      ['Rays', ['PK']],
+      ['AG Rays', ['PK']],
+      ['Echo A', ['PK']],
+    ] as [string, FilterType[]][]
+  ).map(([productName, types]): WalkplayModel => ({
+    vendorId: WALKPLAY_VENDOR_ID,
+    productName,
+    name: `MOONDROP ${productName}`,
+    untested: true,
+    capabilities: { ...caps(8, types, { min: -12, max: 12 }), q: { min: 0.25, max: 8 } },
+  })),
 ];
 
-export function findWalkplayModel(vendorId: number, productId: number): WalkplayModel | undefined {
-  return WALKPLAY_MODELS.find((m) => m.vendorId === vendorId && m.productId === productId);
+const norm = (s: string) => s.trim().toLowerCase();
+
+export function findWalkplayModel(vendorId: number, productId: number, productName = ''): WalkplayModel | undefined {
+  const byId = WALKPLAY_MODELS.find((m) => m.vendorId === vendorId && m.productId === productId);
+  if (byId) return byId;
+  const name = norm(productName).replace(/^moondrop\s+/, '');
+  if (!name) return undefined;
+  return WALKPLAY_MODELS.find(
+    (m) => m.vendorId === vendorId && m.productId === undefined && m.productName !== undefined && norm(m.productName) === name,
+  );
 }
 
 export function pickWalkplayInterface(devices: HIDDevice[]): HIDDevice | null {
   for (const d of devices) {
-    if (findWalkplayModel(d.vendorId, d.productId) && hasOutputReport(d, REPORT_ID)) return d;
+    if (findWalkplayModel(d.vendorId, d.productId, d.productName) && hasOutputReport(d, REPORT_ID)) return d;
   }
   return null;
 }

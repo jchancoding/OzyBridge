@@ -112,6 +112,20 @@ Filter types: `0` disabled, `1` low shelf, `2` peaking, `3` high shelf, `4` low 
 
 Other timings: 50 ms between operations, 150 ms after an `EQ_ACTIVE` change.
 
+## devicePEQ `moondropUsbHidHandler.js` (0BSD, read 2026-10-27)
+
+Agrees with the vendor tool on report `0x4B`, the band read (`80 09 18 00 <band> 00`), reply offsets 27 to 33, ×256 encodings, the RBJ coefficients at 96 kHz scaled by 2^30, and `peqIndex` 7 as the last byte of a band write.
+
+Differences and extra notes:
+
+- Matches models by USB product name only, not product ID. OzyBridge does the same for these models.
+- Reads the active slot with `80 0F 00` (slot in reply byte 3) and pre-gain with read `0x03` (int16 LE at bytes 3 and 4, ÷256). It writes pre-gain with `0x23`.
+- After each band write it sends `01 0A <band> 00 FF FF FF` (EQ_COEFF "enable"). The vendor tool sends one "enable all" instead.
+- It sends no delays between writes. The vendor tool waits 25 ms per band and 200 ms after a save.
+- It skips writing pre-gain on most models, because the device derives headroom from the coefficients. Writing both would reduce the gain twice.
+- **Its `resetEQ` sends `01 05 01 04 00`. In the vendor enum `0x05` is FLASH_CLEAR, and target `0x04` is "all". Never send it.**
+- FreeDSP (non-Pro), ECHO-B and Old Fashioned use other handlers (Conexant, and a separate Old Fashioned one). They are not this protocol.
+
 ## Before OzyBridge writes to a Moondrop device
 
 1. Generate coefficients in `src/core/` and test them against known values (Vitest).

@@ -29,7 +29,7 @@ export interface ConnectOpts {
 }
 
 export async function connectWalkplay(device: HidLike, opts: ConnectOpts = {}): Promise<DeviceAdapter> {
-  const model = findWalkplayModel(device.vendorId, device.productId);
+  const model = findWalkplayModel(device.vendorId, device.productId, device.productName);
   if (!model) {
     throw new UnsupportedDeviceError(
       `Unsupported device ${device.vendorId.toString(16)}:${device.productId.toString(16)}`,
