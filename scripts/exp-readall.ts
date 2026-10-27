@@ -1,4 +1,4 @@
-// End-to-end check of the adapter's readSlot over every user slot, starting from a built-in preset.
+// End-to-end check of the adapter's batch readSlots over every user slot, from a built-in preset and from a user slot.
 import type { EqProfile } from '../src/core/eq';
 import { connect, log, sleep } from './hid-debug';
 
@@ -15,13 +15,18 @@ for (const s of slots) {
   ref[s] = key(await a.readActiveProfile());
 }
 
-for (const from of [Number(process.env.FROM ?? 0), 160]) {
+for (const from of [0, 164]) {
   await a.setActiveSlot(from);
   await sleep(1500);
+  const ids = [...slots].sort((x, y) => Number(y === from) - Number(x === from));
   const t = Date.now();
-  const bad = [];
-  for (const s of slots) if (key(await a.readSlot(s)) !== ref[s]) bad.push(s);
-  log(`readSlot x10 from ${from}: ${bad.length ? `STALE ${bad.join(',')}` : 'all match'} in ${Date.now() - t} ms, active now ${await a.getActiveSlot()}`);
+  const bad: number[] = [];
+  let first = -1;
+  await a.readSlots!(ids, (id, p) => {
+    if (first < 0) first = Date.now() - t;
+    if (key(p) !== ref[id]) bad.push(id);
+  });
+  log(`readSlots from ${from}: ${bad.length ? `STALE ${bad.join(',')}` : 'all match'}, first card ${first} ms, all ${Date.now() - t} ms, active now ${await a.getActiveSlot()}`);
 }
 
 await a.setActiveSlot(start);

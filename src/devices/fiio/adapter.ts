@@ -218,6 +218,22 @@ export async function connectFiio(device: HidLike, opts: ConnectOpts = {}): Prom
         return result;
       }),
 
+    readSlots: (ids, onSlot) =>
+      locked(async () => {
+        const prev = await getActive();
+        try {
+          for (const id of ids) {
+            if (id !== (await getActive())) {
+              await setActive(id);
+              await sleep(timing.slotSettleMs);
+            }
+            onSlot(id, await readProfile());
+          }
+        } finally {
+          if ((await getActive().catch(() => prev)) !== prev) await setActive(prev).catch(() => {});
+        }
+      }),
+
     writeSlot: (id, profile) =>
       locked(async () => {
         const wire = toWireProfile(profile, caps.qLaw, qStep);
