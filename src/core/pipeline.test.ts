@@ -29,14 +29,14 @@ describe('file to device pipeline', () => {
     expect(peakWithPreamp(fit.profile)).toBeLessThanOrEqual(0);
   });
 
-  it('fits the BA15 FiiO file and lowers its preamp to avoid clipping', () => {
+  it('fits the BA15 FiiO file, keeps its preamp and warns about clipping', () => {
     const parsed = parseFiioXml(ba15);
     if (!parsed.ok) throw new Error(JSON.stringify(parsed.errors));
     const fit = fitProfile(parsed.profile, BTR17);
     if (!fit.ok) throw new Error(JSON.stringify(fit.errors));
-    expect(fit.profile.preamp).toBe(-6.1);
-    expect(fit.notes).toContain('Preamp lowered from -6 dB to -6.1 dB to prevent clipping.');
-    expect(peakWithPreamp(fit.profile)).toBeLessThanOrEqual(0);
+    expect(fit.profile.preamp).toBe(-6);
+    expect(fit.warnings).toHaveLength(1);
+    expect(fit.warnings[0]).toContain('-6.1 dB or lower');
   });
 
   it('exports a fitted profile that parses and fits back unchanged', () => {

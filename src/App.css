@@ -150,7 +150,7 @@ body {
 .btn-secondary:disabled { color: var(--oz-text-3); cursor: default; }
 .btn-secondary:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--oz-accent); outline-offset: 2px; }
 .bar { display: flex; flex-wrap: wrap; gap: var(--oz-2); }
-.slot-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--oz-3); }
+.slot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr)); gap: var(--oz-3); }
 .slot { display: flex; flex-direction: column; gap: var(--oz-2); padding: var(--oz-3); background: var(--oz-surface); border: 1px solid var(--oz-line); cursor: pointer; }
 .slot-selected { background: var(--oz-accent-wash); border-left: 2px solid var(--oz-accent); }
 .slot-head { display: flex; gap: var(--oz-2); align-items: center; }
@@ -167,8 +167,8 @@ body {
 .graph-legend-text { font: 12px var(--oz-font-ui); fill: var(--oz-text); }
 .slot-compare { outline: 2px solid var(--oz-curve-2); outline-offset: -2px; }
 .badge-compare { font: 700 0.7rem var(--oz-font-mono); color: var(--oz-curve-2); border: 1px solid var(--oz-curve-2); padding: 0 var(--oz-1, 4px); }
-.slot-actions { display: flex; gap: var(--oz-2); }
-.slot-actions button { flex: 1; }
+.slot-actions { display: flex; flex-wrap: wrap; gap: var(--oz-2); }
+.slot-actions button { flex: 1 1 5.5rem; min-width: 0; padding-inline: var(--oz-2); }
 .slot-actions .btn-secondary[aria-pressed='true'] { border-color: var(--oz-curve-2); color: var(--oz-curve-2); }
 .graph-thumb .graph-curve { stroke-width: 1.5; }
 .eq-view { display: flex; flex-direction: column; gap: var(--oz-3); padding-left: var(--oz-3); border-left: var(--oz-1) solid var(--oz-curve-2); }
@@ -254,9 +254,6 @@ h1.display { font-size: 1.75rem; }
 .drop-overlay { position: fixed; inset: 0; z-index: 60; pointer-events: none; background: var(--oz-scrim); display: flex; align-items: flex-start; justify-content: center; padding-top: 38vh; }
 .drop-overlay span { background: var(--oz-inverse); border-left: 6px solid var(--oz-drop); color: var(--oz-on-inverse); padding: var(--oz-4) var(--oz-8); font: 600 1.5rem var(--oz-font-ui); }
 
-@media (max-width: 1100px) { .slot-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
-@media (max-width: 900px) { .slot-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 640px) { .slot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 *, *::before, *::after { box-sizing: border-box; }
 .app > *, .workspace > * { min-width: 0; }
@@ -342,4 +339,27 @@ body::before {
   .sticky { background: var(--oz-bg); -webkit-backdrop-filter: none; backdrop-filter: none; }
   .sticky .hud, .sticky .notice-ok, .sticky .notice-info, .sticky .notice-busy { background: var(--oz-surface); }
   .hud, .notice { border-color: var(--oz-line-strong); }
+}
+
+/* Responsive desktop layout: nothing may spill past its container at any window width. */
+.hud { flex-wrap: wrap; row-gap: var(--oz-2); }
+.hud-title { overflow-wrap: anywhere; }
+.eq-view { min-width: 0; }
+.eq-view .bands-scroll { overflow-x: auto; }
+.bands { min-width: 36rem; }
+.gain-cell { flex-wrap: wrap; }
+.preamp { flex-wrap: wrap; }
+.action-group { flex: 1 1 18rem; min-width: 0; }
+.action-group .bar > button { max-width: 100%; white-space: normal; text-align: left; }
+.btn-primary { max-width: 100%; }
+.shared-preview .bar, .notice { min-width: 0; }
+.notice-warn { border-left-color: var(--oz-warn); background: var(--oz-warn-wash); }
+.sticky .notice-warn { background: var(--oz-warn-wash); }
+.clip-warn { display: flex; flex-wrap: wrap; align-items: center; gap: var(--oz-2) var(--oz-3); margin: 0; padding: var(--oz-2) var(--oz-3); background: var(--oz-warn-wash); border-left: var(--oz-1) solid var(--oz-warn); color: var(--oz-text); font-size: 0.9375rem; }
+.clip-warn > span { flex: 1 1 24rem; }
+img, svg, canvas { max-width: 100%; }
+@media (max-width: 760px) {
+  .app { padding: var(--oz-4) var(--oz-3); }
+  .intro { padding: var(--oz-3) var(--oz-4); font-size: 1rem; }
+  .intro__heading { font-size: 1.25rem; }
 }

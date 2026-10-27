@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent } from 'react';
-import { serializeSlotBackup } from '../core/backup';
+import { parseSlotBackup, planBackupImport, serializeSlotBackup, type RestoreItem } from '../core/backup';
 import { exportAutoEq, parseAutoEq } from '../core/autoeq';
 import type { EqBand, EqProfile, FilterType, Range } from '../core/eq';
 import { exportFiioXml, parseFiioXml } from '../core/fiioXml';
-import { fitProfile } from '../core/fit';
+import { clipCheck, fitProfile } from '../core/fit';
 import { decodeShareFragment, encodeShareFragment } from '../core/shareLink';
 import { isFlat, matchSlotNames, parseSlotNames, renameSlot, serializeSlotNames, type SlotNames } from '../core/slotNames';
 import { addPreset, deletePreset, mergePresets, parsePresets, renamePreset, serializePresets, type Preset } from '../core/presets';
@@ -20,6 +20,7 @@ const GAIN_STEPS = [-1, -0.5, 0.5, 1];
 
 type Notice =
   | { kind: 'info' | 'ok' | 'error' | 'busy'; text: string; undo?: () => void }
+  | { kind: 'warn'; text: string; undo?: () => void }
   | { kind: 'confirm'; text: string; go: () => void; yes?: string; no?: string; danger?: boolean }
   | null;
 
@@ -38,7 +39,7 @@ function parseAny(text: string, fileName: string, a: DeviceAdapter) {
   if (!parsed.ok) return { ok: false as const, errors: parsed.errors.map((e) => e.message) };
   const fit = fitProfile(parsed.profile, a.capabilities);
   if (!fit.ok) return { ok: false as const, errors: fit.errors.map((e) => e.message) };
-  return { ok: true as const, profile: fit.profile, name: parsed.name, notes: fit.notes };
+  return { ok: true as const, profile: fit.profile, name: parsed.name, notes: fit.notes, warnings: fit.warnings };
 }
 
 export function Stripes() {
@@ -136,12 +137,14 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
   const lastOn = useRef<number>(userSlots[0]?.id ?? 0);
   const shared = useRef<ReturnType<typeof decodeShareFragment> | null>(location.hash ? decodeShareFragment(location.hash) : null);
   const [readDone, setReadDone] = useState(false);
-  const [pending, setPending] = useState<{ name: string; profile: EqProfile; extra: string } | null>(null);
+  const [pending, setPending] = useState<{ name: string; profile: EqProfile; extra: string; warn: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const restoreRef = useRef<HTMLInputElement>(null);
+  const backupRef = useRef<HTMLInputElement>(null);
 
   const saved = profiles[selected];
   const shown = draft ?? saved;
+  const clip = useMemo(() => (shown ? clipCheck(shown, cap) : null), [shown, cap]);
   const matched = useMemo(() => matchSlotNames(names[product] ?? [], profiles), [names, product, profiles]);
   const slotName = (id: number) => matched[id] ?? '';
   const index = (id: number) => String(userSlots.findIndex((s) => s.id === id) + 1).padStart(2, '0');
@@ -177,12 +180,14 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
       return next;
     });
 
-  const run = useCallback(async (label: string, fn: () => Promise<string | { text: string; undo: () => void }>) => {
+  const run = useCallback(async (label: string, fn: () => Promise<string | { text: string; undo?: () => void; warn?: string }>) => {
     setBusy(true);
     setNotice({ kind: 'busy', text: label });
     try {
       const r = await fn();
-      setNotice(typeof r === 'string' ? { kind: 'ok', text: r } : { kind: 'ok', text: r.text, undo: r.undo });
+      if (typeof r === 'string') setNotice({ kind: 'ok', text: r });
+      else if (r.warn) setNotice({ kind: 'warn', text: `${r.text} ${r.warn}`, undo: r.undo });
+      else setNotice({ kind: 'ok', text: r.text, undo: r.undo });
     } catch (e) {
       setNotice({ kind: 'error', text: describeConnectError(e) });
     } finally {
@@ -225,7 +230,7 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
     const target = userSlots.find((s) => profiles[s.id] && isFlat(profiles[s.id] as EqProfile)) ?? userSlots[0];
     if (target) setSelected(target.id);
     setDraft(null);
-    setPending({ name: d.name, profile: fit.profile, extra: fit.notes.length ? ` ${fit.notes.join(' ')}` : '' });
+    setPending({ name: d.name, profile: fit.profile, extra: fit.notes.length ? ` ${fit.notes.join(' ')}` : '', warn: fit.warnings.join(' ') });
     // Retries once the slot read has filled `profiles`. `shared` is cleared above so it runs once.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [readDone, profiles]);
@@ -236,7 +241,7 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
     return () => clearTimeout(t);
   }, [notice]);
 
-  const writeProfile = (id: number, profile: EqProfile, extra = '', name = slotName(id), isUndo = false) =>
+  const writeProfile = (id: number, profile: EqProfile, extra = '', name = slotName(id), isUndo = false, warn = '') =>
     run(`Writing slot ${index(id)} and verifying...`, async () => {
       const before = profiles[id] ? { id, profile: profiles[id], name: slotName(id) } : null;
       const back = await adapter.writeSlot(id, profile);
@@ -251,19 +256,71 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
       }
       setLastWrite(before);
       const text = `Slot ${Number(index(id))} saved and verified.${extra}`;
-      return before ? { text, undo: () => void writeProfile(before.id, before.profile, '', before.name, true) } : text;
+      const undo = before ? () => void writeProfile(before.id, before.profile, '', before.name, true) : undefined;
+      return warn || undo ? { text, undo, warn } : text;
     });
 
-  const requestWrite = (id: number, profile: EqProfile, extra = '', name = slotName(id)) => {
+  const requestWrite = (id: number, profile: EqProfile, extra = '', name = slotName(id), warn = '') => {
     const existing = profiles[id];
-    const go = () => void writeProfile(id, profile, extra, name);
+    const go = () => void writeProfile(id, profile, extra, name, false, warn);
     if (existing && !isFlat(existing)) {
       const label = slotName(id) ? ` (${slotName(id)})` : '';
       setNotice({ kind: 'confirm', text: `Overwrite slot ${index(id)}${label}? Its current EQ on the device will be replaced.`, go });
     } else go();
   };
 
+  const startRestore = (text: string): boolean => {
+    const parsed = parseSlotBackup(text);
+    if (!parsed.ok) return false;
+    if (!allRead) {
+      setNotice({ kind: 'error', text: 'Wait until all slots have been read from the device, then import the backup again.' });
+      return true;
+    }
+    const plan = planBackupImport(parsed.backup, product, userSlots.map((s) => s.id), cap, profiles);
+    if (!plan.ok) {
+      setNotice({ kind: 'error', text: `Nothing was written. ${plan.errors.slice(0, 4).join(' ')}${plan.errors.length > 4 ? ` (and ${plan.errors.length - 4} more)` : ''}` });
+      return true;
+    }
+    const todo = plan.items.filter((i) => i.changed);
+    if (todo.length === 0) {
+      updateNames((n) => plan.items.reduce((acc, i) => renameSlot(acc, product, i.id, i.profile, i.name), n));
+      setNotice({ kind: 'ok', text: 'Every slot on the device already matches this backup. Slot names were updated.' });
+      return true;
+    }
+    const slots = todo.map((i) => index(i.id)).join(', ');
+    const secs = Math.ceil((todo.length * 4.5) / 5) * 5;
+    setNotice({
+      kind: 'confirm',
+      text: `Restore ${todo.length} slot${todo.length === 1 ? '' : 's'} (${slots}) from a backup made ${parsed.backup.exportedAt.slice(0, 10)}? Their current EQs on the device will be replaced and cannot be undone. This takes about ${secs} seconds. Tip: use Export all slots first to keep what is there now.`,
+      yes: 'Yes, restore',
+      go: () => void restoreAll(plan.items),
+    });
+    return true;
+  };
+
+  const restoreAll = (items: RestoreItem[]) =>
+    run('Restoring slots...', async () => {
+      const todo = items.filter((i) => i.changed);
+      let n = 0;
+      for (const it of todo) {
+        n++;
+        setNotice({ kind: 'busy', text: `Restoring slot ${index(it.id)} (${n} of ${todo.length}) and verifying...` });
+        const back = await adapter.writeSlot(it.id, it.profile);
+        setProfiles((all) => ({ ...all, [it.id]: back }));
+        updateNames((nm) => renameSlot(nm, product, it.id, back, it.name));
+      }
+      updateNames((nm) => items.filter((i) => !i.changed).reduce((acc, i) => renameSlot(acc, product, i.id, i.profile, i.name), nm));
+      setActive(await adapter.getActiveSlot());
+      setDraft(null);
+      setLastWrite(null);
+      setSweep((k) => k + 1);
+      const risky = items.filter((i) => i.warnings.length).map((i) => index(i.id));
+      const warn = risky.length ? `Clipping risk in slot${risky.length === 1 ? '' : 's'} ${risky.join(', ')}: the preamp is higher than the boost allows. Select a slot to see the suggested preamp.` : '';
+      return { text: `Restored ${todo.length} slot${todo.length === 1 ? '' : 's'} and verified each one.`, warn };
+    });
+
   const importText = (id: number, text: string, fileName: string) => {
+    if ((/\.json$/i.test(fileName) || text.trimStart().startsWith('{')) && startRestore(text)) return;
     const r = parseAny(text, fileName, adapter);
     if (!r.ok) {
       setNotice({ kind: 'error', text: r.errors.join(' ') });
@@ -271,7 +328,7 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
     }
     setSelected(id);
     setDraft(null);
-    requestWrite(id, r.profile, r.notes.length ? ` ${r.notes.join(' ')}` : '', slotName(id) || r.name || '');
+    requestWrite(id, r.profile, r.notes.length ? ` ${r.notes.join(' ')}` : '', slotName(id) || r.name || '', r.warnings.join(' '));
   };
 
   const importFile = async (id: number, file: File) => importText(id, await file.text(), file.name);
@@ -314,7 +371,7 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
     if (!fit.ok) return setNotice({ kind: 'error', text: fit.errors.map((e) => e.message).join(' ') });
     setSelected(slot);
     setDraft(null);
-    requestWrite(slot, fit.profile, fit.notes.length ? ` ${fit.notes.join(' ')}` : '', preset.name);
+    requestWrite(slot, fit.profile, fit.notes.length ? ` ${fit.notes.join(' ')}` : '', preset.name, fit.warnings.join(' '));
   };
 
   const savePreset = () => {
@@ -378,7 +435,7 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
     if (!draft) return;
     const fit = fitProfile(draft, cap);
     if (!fit.ok) return setNotice({ kind: 'error', text: fit.errors.map((e) => e.message).join(' ') });
-    requestWrite(selected, fit.profile, fit.notes.length ? ` ${fit.notes.join(' ')}` : '');
+    requestWrite(selected, fit.profile, fit.notes.length ? ` ${fit.notes.join(' ')}` : '', slotName(selected), fit.warnings.join(' '));
   };
 
   const copyShare = async () => {
@@ -422,7 +479,7 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
           )}
         </header>
         {notice && (
-          <div className={`notice notice-${notice.kind}`} role={notice.kind === 'error' || notice.kind === 'confirm' ? 'alert' : 'status'}>
+          <div className={`notice notice-${notice.kind}`} role={notice.kind === 'error' || notice.kind === 'confirm' || notice.kind === 'warn' ? 'alert' : 'status'}>
             {notice.kind === 'busy' && <Stripes />}
             <span className="notice-text">{notice.text}</span>
             {notice.kind === 'confirm' && (
@@ -431,8 +488,8 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
                 <button className="btn-secondary" onClick={() => setNotice(null)}>{notice.no ?? 'Cancel'}</button>
               </>
             )}
-            {notice.kind === 'ok' && notice.undo && <button className="btn-secondary" disabled={busy} onClick={notice.undo}>Undo</button>}
-            {notice.kind === 'error' && <button className="btn-secondary" onClick={() => setNotice(null)}>Dismiss</button>}
+            {(notice.kind === 'ok' || notice.kind === 'warn') && notice.undo && <button className="btn-secondary" disabled={busy} onClick={notice.undo}>Undo</button>}
+            {(notice.kind === 'error' || notice.kind === 'warn') && <button className="btn-secondary" onClick={() => setNotice(null)}>Dismiss</button>}
           </div>
         )}
       </div>
@@ -448,12 +505,13 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
           <div className="mono caption">
             {pending.profile.bands.filter((b) => b.enabled && b.gain !== 0).length} bands &middot; {pending.profile.preamp.toFixed(1)} dB
           </div>
+          {pending.warn && <p className="clip-warn" role="status">{pending.warn}</p>}
           <p>
             This is a preview. It is not on the device yet. Click a slot below to choose where it goes (the slot&rsquo;s current EQ is shown as the comparison curve), then write it.
             To test, press <strong>Activate</strong> on that slot. <strong>Undo</strong> restores the previous EQ.
           </p>
           <div className="bar">
-            <button className="btn-primary" disabled={busy || !allRead} onClick={() => requestWrite(selected, pending.profile, pending.extra, pending.name)}>Write to slot {sel}</button>
+            <button className="btn-primary" disabled={busy || !allRead} onClick={() => requestWrite(selected, pending.profile, pending.extra, pending.name, pending.warn)}>Write to slot {sel}</button>
             <button className="btn-secondary" onClick={() => setPending(null)}>Not now</button>
           </div>
         </section>
@@ -550,11 +608,13 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
           <h3 className="label">Backup</h3>
           <div className="bar">
             <button className="btn-secondary" disabled={!allRead} title="Saves every user slot's EQ and name to one file. Nothing is written to the device." onClick={exportAll}>Export all slots (.json)</button>
+            <button className="btn-secondary" disabled={busy || !allRead} title="Loads a file made by Export all slots and writes every slot to the device after you confirm. Slots that already match are skipped." onClick={() => backupRef.current?.click()}>Import all slots (.json)</button>
             <button className="btn-secondary" title="Saves only the slot names (kept in this browser) to a file. It does not save any EQ settings." onClick={() => download('ozybridge-slot-names.json', serializeSlotNames(names), 'application/json')}>Save slot names to file</button>
             <button className="btn-secondary" title="Loads slot names from a file saved earlier. Names only, no EQ settings are written to the device." onClick={() => restoreRef.current?.click()}>Load slot names from file</button>
           </div>
         </section>
         <input ref={fileRef} type="file" accept=".txt,.xml" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void importFile(selected, f); }} />
+        <input ref={backupRef} type="file" accept=".json" hidden onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (!f) return; if (!startRestore(await f.text())) setNotice({ kind: 'error', text: 'This is not an OzyBridge slot backup. Use a file made by Export all slots. To import one EQ, pick a slot and use Choose file.' }); }} />
         <input ref={restoreRef} type="file" accept=".json" hidden onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) { const parsed = parseSlotNames(await f.text()); updateNames(() => parsed); } }} />
       </div>
 
@@ -581,7 +641,13 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
             <span className="unit">dB</span>
             <span className="hint">Tip: click a field, then use the arrow keys (Shift = 10x).</span>
           </div>
-          <table className="bands">
+          {clip && (
+            <div className="clip-warn" role="status">
+              <span>{clip.message}</span>
+              <button className="btn-secondary" onClick={() => setDraft({ ...shown, preamp: clip.suggested })}>Set preamp to {clip.suggested.toFixed(1)} dB</button>
+            </div>
+          )}
+          <div className="bands-scroll"><table className="bands">
             <thead><tr><th>#</th><th>Type</th><th>Freq (Hz)</th><th>Gain (dB)</th><th>Q</th></tr></thead>
             <tbody>
               {shown.bands.map((b, i) => (
@@ -603,7 +669,7 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
           <div className="bar">
             <button className="btn-primary" disabled={!draft || busy || anyBlocked} title="Send these edits to the device and verify them" onClick={writeDraft}>Save changes to slot {sel}</button>
             {anyBlocked && <span className="field-error">Fix the highlighted number fields before saving.</span>}

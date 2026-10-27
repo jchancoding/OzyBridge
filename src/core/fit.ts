@@ -4,7 +4,7 @@ import { wireQ } from './qCompensation';
 import { logFrequencies, profileResponseDb } from './response';
 
 export type FitResult =
-  | { ok: true; profile: EqProfile; notes: string[] }
+  | { ok: true; profile: EqProfile; notes: string[]; warnings: string[] }
   | { ok: false; errors: EqIssue[] };
 
 function decimals(step: number): number {
@@ -26,6 +26,28 @@ function roundStep(v: number, step: number): number {
 
 function floorStep(v: number, step: number): number {
   return fix(Math.floor(v / step + 1e-9) * step, step);
+}
+
+export interface ClipInfo { peak: number; suggested: number; message: string }
+
+// Peak boost of the bands alone (preamp excluded) against the preamp. Returns null when there is headroom.
+// `suggested` is the highest preamp on the device's step grid that avoids clipping, floored at the device minimum.
+export function clipCheck(profile: EqProfile, limits: EqLimits, fs = 48000): ClipInfo | null {
+  const bands = profile.bands.filter((b) => b.enabled);
+  const grid = [
+    ...logFrequencies(2000),
+    ...bands.map((b) => Math.min(20000, Math.max(20, b.freq))),
+  ];
+  const peak = Math.max(...profileResponseDb({ preamp: 0, bands }, grid, fs, false));
+  const needed = -Math.max(0, peak);
+  const suggested = Math.max(limits.preamp.min, floorStep(needed, limits.step.gain));
+  if (profile.preamp <= suggested) return null;
+  const gd = decimals(limits.step.gain);
+  return {
+    peak,
+    suggested,
+    message: `Clipping risk: this EQ boosts up to ${signed(peak, gd)} dB but the preamp is ${signed(profile.preamp, gd)} dB. A preamp of ${signed(suggested, gd)} dB or lower avoids it. Loud music may distort until you lower the preamp.`,
+  };
 }
 
 const signed = (v: number, d: number) => `${v > 0 ? '+' : ''}${v.toFixed(d)}`;
@@ -93,28 +115,24 @@ export function fitProfile(profile: EqProfile, limits: EqLimits, fs = 48000): Fi
   });
   if (errors.length > 0) return { ok: false, errors };
 
-  const grid = [
-    ...logFrequencies(2000),
-    ...bands.map((b) => Math.min(20000, Math.max(20, b.freq))),
-  ];
-  const peak = Math.max(...profileResponseDb({ preamp: 0, bands }, grid, fs, false));
-  const needed = -Math.max(0, peak);
   if (profile.preamp > limits.preamp.max) {
     return {
       ok: false,
       errors: [{ message: `The preamp of ${signed(profile.preamp, gd)} dB is above the device maximum of ${signed(limits.preamp.max, gd)} dB. Lower the preamp and import again.` }],
     };
   }
-  const preamp = floorStep(Math.min(profile.preamp, needed), limits.step.gain);
-  if (preamp < limits.preamp.min) {
+  if (profile.preamp < limits.preamp.min) {
     return {
       ok: false,
-      errors: [{ message: `This EQ needs ${Math.abs(preamp).toFixed(gd)} dB of preamp to avoid clipping, but the device only goes down to ${limits.preamp.min.toFixed(gd)} dB. Reduce the boost on your largest filters.` }],
+      errors: [{ message: `The preamp of ${signed(profile.preamp, gd)} dB is below the device minimum of ${signed(limits.preamp.min, gd)} dB. Raise the preamp and import again.` }],
     };
   }
-  if (preamp < profile.preamp) {
-    notes.push(`Preamp lowered from ${profile.preamp} dB to ${preamp} dB to prevent clipping.`);
-  }
+  // The preamp is never changed here. A clipping risk is only reported.
+  const preamp = roundStep(profile.preamp, limits.step.gain);
+  if (preamp !== profile.preamp) changed = true;
+  const warnings: string[] = [];
+  const clip = clipCheck({ preamp, bands }, limits, fs);
+  if (clip) warnings.push(clip.message);
   if (changed) {
     notes.push(`Rounded to device precision (gain ${limits.step.gain} dB, Q ${limits.step.q}, frequency ${limits.step.freq} Hz).`);
   }
@@ -123,5 +141,5 @@ export function fitProfile(profile: EqProfile, limits: EqLimits, fs = 48000): Fi
   for (let i = out.length; i < limits.maxBands; i++) {
     out.push({ ...flatBand(limits.defaultFreqs?.[i] ?? 1000), enabled: false });
   }
-  return { ok: true, profile: { preamp, bands: out }, notes };
+  return { ok: true, profile: { preamp, bands: out }, notes, warnings };
 }
