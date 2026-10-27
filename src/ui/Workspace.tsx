@@ -399,6 +399,7 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
           <span className="hud-item mono">
             Playing: {active === null ? '--' : userSlots.some((s) => s.id === active) ? `slot ${index(active)}` : eqOff ? 'EQ off' : 'built-in preset'}
           </span>
+          {cap.eqOffSlotId !== null && (
           <span className="switch-wrap" title="Off = bypass, the DAC plays without EQ">
             <span className="switch-label" id="eq-switch-label">EQ</span>
             <button
@@ -413,6 +414,7 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
               <span className="switch-knob" />
             </button>
           </span>
+          )}
         </header>
         {notice && (
           <div className={`notice notice-${notice.kind}`} role={notice.kind === 'error' || notice.kind === 'confirm' ? 'alert' : 'status'}>
