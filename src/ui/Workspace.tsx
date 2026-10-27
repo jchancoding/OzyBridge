@@ -196,9 +196,13 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
       const a = await adapter.getActiveSlot();
       setActive(a);
       if (userSlots.some((s) => s.id === a)) lastOn.current = a;
-      for (const s of userSlots) {
-        const p = await adapter.readSlot(s.id);
-        setProfiles((all) => ({ ...all, [s.id]: p }));
+      const put = (id: number, p: EqProfile) => setProfiles((all) => ({ ...all, [id]: p }));
+      // The active slot reads without a switch, so it appears first.
+      const ids = userSlots.map((s) => s.id).sort((x, y) => Number(y === a) - Number(x === a));
+      if (adapter.readSlots) {
+        await adapter.readSlots(ids, put);
+      } else {
+        for (const id of ids) put(id, await adapter.readSlot(id));
       }
       return 'Slots read.';
     }).then(() => setReadDone(true));

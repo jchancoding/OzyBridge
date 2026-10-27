@@ -168,6 +168,17 @@ If added later: read-only probe first, then set on the bench.
 
 - Round 5 (node-hid harness `scripts/`, 2026-10-27): after a `0x16` switch, the `0x16` get and the preamp read update at once, but band reads keep returning the previous slot's bands until about 500 to 600 ms after the switch (stale at 500 ms, correct at 600 ms, 8 of 8 trials each). This holds for user-to-user and built-in-to-user switches alike. A read that starts early can come back half old, half new. The adapter waits `slotSettleMs` (600 ms) on top of `setGapMs` (200 ms) before reading or writing a slot. Verified: `readSlot` over all ten user slots matches long-wait reference reads, starting from Jazz and from USER1.
 
+## FiiO Control behaviour (bundle `index-7hb30NUo.js`, re-read 2026-10-27)
+
+- The BTR17 has no model-specific adapter. It uses FiiO's generic HID path.
+- Connect order: get `0x1A` (FiiO enum `PEQ_SWITCH`, EQ on/off), get `0x18`, get `0x16`, then bands `0x15` 0 to 9 and get `0x17`. Only the active preset is read. FiiO never switches presets to read other slots.
+- `0x1A` reply byte 0 is read as `0 = off, anything else = on`. Set `0x1A [0|1]` (`AA 0A .. 1A 01 xx`) is FiiO's EQ on/off. The bundle does not use preset 240 anywhere. The 240 "EQ off" slot comes from devicePEQ and is unverified.
+- On a failed connect read, FiiO shows "invalid data, check that EQ is open", matching the EQ-off timeouts in round 4.
+- FiiO listens for unsolicited `0x16` reports (preset changed on the device) and re-reads bands and preamp when one arrives.
+- For the BTR15 adapter, FiiO's preset switch sends `0x16` and then waits 1000 ms, consistent with the settle delay in round 5.
+- Our 2026-10-26 capture shows get `0x1A` replying `00` while band reads worked, so the reply meaning on the BTR17 is unconfirmed.
+- `0x1A` is not in OzyBridge's allowed set. Next step, if wanted: add get `0x1A` only, read it with EQ on and off on the device, then decide.
+
 ## Open questions
 
 1. (Answered in round 2.) Sets take effect, and nothing comes back for them.

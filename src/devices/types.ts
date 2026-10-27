@@ -44,5 +44,7 @@ export interface DeviceAdapter {
   readActiveProfile(): Promise<EqProfile>;
   // Switches to the slot, reads it, then restores the previously active slot, even on failure.
   readSlot(id: number): Promise<EqProfile>;
+  // Optional batch read: reads each slot, reports it as it lands, restores the active slot once at the end.
+  readSlots?(ids: number[], onSlot: (id: number, profile: EqProfile) => void): Promise<void>;
   writeSlot(id: number, profile: EqProfile): Promise<EqProfile>;  // resolves with the read-back profile
 }

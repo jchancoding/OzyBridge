@@ -73,6 +73,28 @@ describe('connectFiio', () => {
     await expect(a.readActiveProfile()).rejects.toBeInstanceOf(EqDisabledError);
   });
 
+  it('readSlots reads the active slot without switching and restores once', async () => {
+    const f = makeFake();
+    const a = await connect(f);
+    await a.setActiveSlot(162);
+    f.sent.length = 0;
+    const got: number[] = [];
+    await a.readSlots!([162, 160, 165], (id) => got.push(id));
+    expect(got).toEqual([162, 160, 165]);
+    const switches = f.sent.filter((s) => s.cmd === 0x16 && s.kind === 'set').map((s) => s.payload[0]);
+    expect(switches).toEqual([160, 165, 162]);
+    expect(await a.getActiveSlot()).toBe(162);
+  });
+
+  it('readSlots restores the active slot after a failure', async () => {
+    const f = makeFake();
+    const a = await connect(f);
+    await a.setActiveSlot(162);
+    await expect(a.readSlots!([160, 165], () => { f.silentCmds.add(0x15); })).rejects.toThrow();
+    f.silentCmds.clear();
+    expect(await a.getActiveSlot()).toBe(162);
+  });
+
   it('rejects a wrong band count and closes', async () => {
     const f = makeFake();
     f.bandCount = 5;
