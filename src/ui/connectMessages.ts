@@ -2,7 +2,7 @@ import { ProtocolError, UnsupportedDeviceError } from '../devices/types';
 import { TransportTimeoutError } from '../transport/webhid';
 
 const BUSY =
-  'The device did not reply. Close FiiO Control and any other tab or app using it, check the USB cable (try a direct port, no hub), then reload and connect again.';
+  'The device did not reply. Close FiiO Control and any other tab or app using it, check the USB cable (try a direct port, no hub), then reload and connect again. Also make sure EQ is switched on in the device settings (EQ off can stop it replying).';
 const BUSY_NAMES = ['NotAllowedError', 'NetworkError', 'InvalidStateError'];
 
 export function describeConnectError(e: unknown): string {

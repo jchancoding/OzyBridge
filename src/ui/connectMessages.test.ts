@@ -4,7 +4,7 @@ import { TransportTimeoutError } from '../transport/webhid';
 import { describeConnectError } from './connectMessages';
 
 const BUSY =
-  'The device did not reply. Close FiiO Control and any other tab or app using it, check the USB cable (try a direct port, no hub), then reload and connect again.';
+  'The device did not reply. Close FiiO Control and any other tab or app using it, check the USB cable (try a direct port, no hub), then reload and connect again. Also make sure EQ is switched on in the device settings (EQ off can stop it replying).';
 
 describe('describeConnectError', () => {
   it('maps timeouts to the busy message', () => {
