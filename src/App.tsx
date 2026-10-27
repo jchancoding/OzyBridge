@@ -7,17 +7,16 @@ import type { DeviceAdapter } from './devices/types';
 import { isWebHidSupported, requestConnectDevices } from './transport/webhid';
 import { Bench } from './ui/Bench';
 import { describeConnectError } from './ui/connectMessages';
+import { Feedback } from './ui/Feedback';
 import { Footer } from './ui/Footer';
 import { Mascot } from './ui/Mascot';
 import './ui/mascot.css';
+import './ui/verify.css';
 import { Probe } from './ui/Probe';
-import { deviceReportUrl } from './ui/reportLink';
+import { Verify } from './ui/Verify';
 import { decodeShareFragment } from './core/shareLink';
 import { Stripes, Workspace } from './ui/Workspace';
 
-const UNTESTED_NOTE = 'Untested models use settings from devicePEQ hardware captures. Every write is read back and checked, but nobody has confirmed them with OzyBridge yet.';
-const WALKPLAY_NOTE =
-  'Listed WalkPlay devices can be read. Writes stay off until someone confirms a save on the hardware.';
 const disconnectedText = (name: string) => `${name} disconnected. Plug it back in and click Connect. Chrome forgets the permission when the device is unplugged.`;
 
 export function App() {
@@ -59,6 +58,8 @@ export function App() {
   const params = new URLSearchParams(location.search);
   if (params.has('bench')) return <Bench />;
   if (params.has('probe')) return <Probe />;
+  if (params.has('verify')) return <Verify />;
+  if (params.has('feedback')) return <Feedback />;
 
   const connect = async () => {
     setError(null);
@@ -76,6 +77,11 @@ export function App() {
     }
   };
 
+  const verifiedFiio = FIIO_MODELS.filter((m) => !m.untested);
+  const untestedFiio = FIIO_MODELS.filter((m) => m.untested);
+  const verifiedWalk = WALKPLAY_MODELS.filter((m) => !m.untested);
+  const untestedWalk = WALKPLAY_MODELS.filter((m) => m.untested);
+
   if (adapter) {
     const walkplay = findWalkplayModel(adapter.info.vendorId, adapter.info.productId);
     const model = findFiioModel(adapter.info.vendorId, adapter.info.productId) ?? walkplay;
@@ -84,14 +90,12 @@ export function App() {
         <main className="app screen">
           {model?.untested && (
             <aside className="untested-banner">
-              <p>{walkplay ? WALKPLAY_NOTE : UNTESTED_NOTE}</p>
-              <a
-                href={deviceReportUrl({ name: model.name, productId: model.productId, firmware: adapter.info.firmware })}
-                target="_blank"
-                rel="noopener"
-              >
-                Report how it went
-              </a>
+              <p>
+                {walkplay
+                  ? 'This WalkPlay device is read-only in OzyBridge until writes are confirmed on hardware.'
+                  : 'This model uses settings from devicePEQ captures. Writes are verified, but nobody has confirmed it with OzyBridge yet.'}
+              </p>
+              <a href="?verify">Test this device</a>
             </aside>
           )}
           <Workspace adapter={adapter} />
@@ -107,7 +111,13 @@ export function App() {
       <main className="app screen">
         <Stripes />
         <h1 className="display">OzyBridge</h1>
-        <p className="message">Control your DAC&apos;s EQ from the browser. Close FiiO Control first, then connect.</p>
+        <p className="message">
+          OzyBridge puts your USB DAC&apos;s EQ in the browser. Drop in an AutoEQ, Squiglink or PeqDB file, pick a slot,
+          done. No app, no account. Close your device&apos;s own app first, then connect.
+        </p>
+        <p className="message">
+          Import and export parametric EQ, name and compare slots, keep a preset library, and share an EQ as a link.
+        </p>
         {sharedLink?.ok && (
           <p className="message">
             This link is the EQ &ldquo;{sharedLink.name}&rdquo;. Connect, and it will be previewed on screen and you choose which slot to write it to. Nothing is sent to the device until you confirm.
@@ -116,14 +126,38 @@ export function App() {
         {sharedLink && !sharedLink.ok && <p className="message error">{sharedLink.errors[0]}</p>}
         <section className="supported-devices" aria-labelledby="supported-devices-heading">
           <h2 id="supported-devices-heading" className="supported-devices__heading">Supported devices</h2>
-          <ul className="supported-devices__list">
-            {[...FIIO_MODELS, ...WALKPLAY_MODELS].map((model) => (
-              <li key={`${model.name}-${model.productId}`}>{model.name}{model.untested ? ' (untested)' : ''}</li>
-            ))}
-          </ul>
-          <p className="supported-devices__note">{UNTESTED_NOTE} {WALKPLAY_NOTE}</p>
+          {verifiedFiio.length + verifiedWalk.length > 0 && (
+            <>
+              <h3 className="supported-devices__subheading">Verified</h3>
+              <ul className="supported-devices__list">
+                {[...verifiedFiio, ...verifiedWalk].map((model) => (
+                  <li key={`${model.name}-v`}>{model.name}</li>
+                ))}
+              </ul>
+            </>
+          )}
+          {(untestedFiio.length > 0 || untestedWalk.length > 0) && (
+            <>
+              <h3 className="supported-devices__subheading">Untested</h3>
+              <ul className="supported-devices__list">
+                {untestedFiio.map((model) => (
+                  <li key={`${model.name}-u`}>{model.name}</li>
+                ))}
+                {untestedWalk.map((model) => (
+                  <li key={`${model.name}-w`}>{model.name} (read-only)</li>
+                ))}
+              </ul>
+            </>
+          )}
+          <h3 className="supported-devices__subheading">Get your device supported</h3>
           <p className="supported-devices__probe">
-            Have another FiiO device? Run the read-only <a href="?probe">device probe</a> and send us the report.
+            Got a DAC that&apos;s untested or missing from the list? Run the{' '}
+            <a href="?verify">device test</a>. It takes about two minutes, reads your EQ, tries one small change on a
+            single slot, puts everything back, and sends us the result. One passing test is usually enough for us to mark
+            a device as supported.
+          </p>
+          <p className="supported-devices__note">
+            We&apos;re working hard to add more devices. Every test report speeds that up.
           </p>
         </section>
         {disconnected && <p className="message">{disconnectedText(disconnected)}</p>}

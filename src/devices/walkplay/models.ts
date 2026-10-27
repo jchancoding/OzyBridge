@@ -70,14 +70,14 @@ export const WALKPLAY_MODELS: WalkplayModel[] = [
   {
     vendorId: WALKPLAY_VENDOR_ID_3302,
     productId: 0x43cc,
-    name: 'Protocol Max',
+    name: 'CrinEar Protocol Max',
     untested: true,
     capabilities: caps(10, ['LSC', 'PK', 'HSC'], { min: -10, max: 10 }),
   },
   {
     vendorId: WALKPLAY_VENDOR_ID_3302,
     productId: 0x43e6,
-    name: 'TP35 Pro',
+    name: 'EPZ TP35 Pro',
     untested: true,
     capabilities: caps(10, ['LSC', 'PK', 'HSC'], { min: -10, max: 10 }),
   },
@@ -91,7 +91,7 @@ export const WALKPLAY_MODELS: WalkplayModel[] = [
   {
     vendorId: WALKPLAY_VENDOR_ID_3302,
     productId: 0x39c3,
-    name: 'Octave',
+    name: 'NiceHCK Octave',
     untested: true,
     capabilities: caps(10, ['LSC', 'PK', 'HSC'], { min: -10, max: 10 }),
   },
