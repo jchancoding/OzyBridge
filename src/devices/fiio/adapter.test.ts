@@ -7,7 +7,7 @@ import { FIIO_MODELS, pickFiioInterface } from './models';
 
 const FORBIDDEN = new Set([0x21, 0x1b, 0x1c, 0x30]);
 const fakes: FakeFiioHid[] = [];
-const ZERO = { bandGapMs: 0, setGapMs: 0, afterPreampMs: 0, afterSaveMs: 0 };
+const ZERO = { bandGapMs: 0, setGapMs: 0, afterPreampMs: 0, afterSaveMs: 0, slotSettleMs: 0 };
 
 function makeFake(): FakeFiioHid {
   const f = new FakeFiioHid();
@@ -192,6 +192,15 @@ describe('writeSlot', () => {
     const switchSet = f.sent.find((s) => s.kind === 'set' && s.cmd === 0x16)!;
     const switchGet = f.sent.find((s) => s.kind === 'get' && s.cmd === 0x16)!;
     expect(switchGet.at - switchSet.at).toBeGreaterThanOrEqual(DEFAULT_FIIO_TIMING.setGapMs);
+    expect(pre.at - switchGet.at).toBeGreaterThanOrEqual(DEFAULT_FIIO_TIMING.slotSettleMs);
+
+    f.sent.length = 0;
+    const r = a.readSlot(165);
+    await vi.advanceTimersByTimeAsync(10_000);
+    await r;
+    const firstBandRead = f.sent.find((s) => s.kind === 'get' && s.cmd === 0x15)!;
+    const confirm = f.sent.filter((s) => s.kind === 'get' && s.cmd === 0x16)[1]!;
+    expect(firstBandRead.at - confirm.at).toBeGreaterThanOrEqual(DEFAULT_FIIO_TIMING.slotSettleMs);
   });
 
   it('still works when the device does reply to sets', async () => {
