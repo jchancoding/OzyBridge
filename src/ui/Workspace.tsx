@@ -396,7 +396,6 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
         <header className="hud">
           <span className="hud-dot" />
           <span className="hud-title">{product}</span>
-          <span className="hud-item mono">Firmware {adapter.info.firmware ?? 'n/a'}</span>
           <span className="hud-item mono">
             Playing: {active === null ? '--' : userSlots.some((s) => s.id === active) ? `slot ${index(active)}` : eqOff ? 'EQ off' : 'built-in preset'}
           </span>
