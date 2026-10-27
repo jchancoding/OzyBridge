@@ -1,5 +1,6 @@
 import { useMemo, type CSSProperties } from 'react';
 import type { EqProfile } from '../core/eq';
+import { equalizedResponse, type Measurement } from '../core/measurement';
 import { logFrequencies, profileResponseDb } from '../core/response';
 
 const W = 1000;
@@ -86,15 +87,17 @@ function toPath(f: number[], db: number[], fx: (hz: number) => number, fy: (d: n
   return f.map((hz, i) => `${i ? 'L' : 'M'}${fx(hz).toFixed(1)} ${fy(db[i] as number).toFixed(1)}`).join(' ');
 }
 
-export function EqGraph({ profile, thumb = false, label = 'Current', compare, sweep = 0 }: {
+export function EqGraph({ profile, thumb = false, label = 'Current', compare, sweep = 0, measurement }: {
   profile: EqProfile; thumb?: boolean; label?: string; compare?: { profile: EqProfile; label: string }; sweep?: number;
+  measurement?: { label: string; measurement: Measurement };
 }) {
   const drawn = useMemo(() => {
     const n = thumb ? 60 : 260;
     const fx = thumb ? (f: number) => (Math.log10(f / 20) / 3) * 100 : x;
     const main = sampleCurve(profile, n);
     const cmp = !thumb && compare ? sampleCurve(compare.profile, 260) : null;
-    const range = graphDbRange(cmp ? [...main.db, ...cmp.db] : main.db);
+    const fr = !thumb && measurement ? equalizedResponse(measurement.measurement, profile, main.f) : null;
+    const range = graphDbRange([...main.db, ...(cmp ? cmp.db : []), ...(fr ? [...fr.original, ...fr.equalized] : [])]);
     const fy = thumb ? (d: number) => thumbPlotY(d, range) : (d: number) => mainPlotY(d, range);
     return {
       path: toPath(main.f, main.db, fx, fy),
@@ -102,9 +105,11 @@ export function EqGraph({ profile, thumb = false, label = 'Current', compare, sw
       range,
       ticks: graphDbTicks(range),
       cmpPath: cmp ? toPath(cmp.f, cmp.db, x, fy) : null,
+      origPath: fr ? toPath(main.f, fr.original, x, fy) : null,
+      eqPath: fr ? toPath(main.f, fr.equalized, x, fy) : null,
     };
-  }, [profile, compare, thumb]);
-  const { path, peak, range, ticks, cmpPath } = drawn;
+  }, [profile, compare, thumb, measurement]);
+  const { path, peak, range, ticks, cmpPath, origPath, eqPath } = drawn;
 
   if (thumb) {
     return (
@@ -116,7 +121,7 @@ export function EqGraph({ profile, thumb = false, label = 'Current', compare, sw
   }
 
   return (
-    <svg className="graph" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`EQ response, peak ${peak.toFixed(1)} dB, scale ±${range} dB${compare ? `, compared with ${compare.label}` : ''}`}>
+    <svg className="graph" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`EQ response, peak ${peak.toFixed(1)} dB, scale ±${range} dB${compare ? `, compared with ${compare.label}` : ''}${origPath ? `, with ${measurement?.label} original and equalized` : ''}`}>
       {REGIONS.map((r, i) => (
         <g key={r.name}>
           <title>{`${r.title} ${r.range} Hz`}</title>
@@ -140,7 +145,19 @@ export function EqGraph({ profile, thumb = false, label = 'Current', compare, sw
       <rect x={L} y={T} width={PW} height={PH} className="graph-frame" />
       {peak > 0 && <rect x={L} y={T} width={PW} height={mainPlotY(0, range) - T} className="graph-clip" />}
       {cmpPath && <path d={cmpPath} className="graph-curve-2" />}
+      {origPath && <path d={origPath} className="graph-fr-original" />}
+      {eqPath && <path d={eqPath} className="graph-fr-eq" />}
       <path d={path} className="graph-curve" />
+      {origPath && (
+        <g className="graph-legend" transform={`translate(0 ${compare ? 36 : 0})`}>
+          {[{ name: 'Original', cls: 'graph-fr-original' }, { name: 'Equalized', cls: 'graph-fr-eq' }, { name: 'EQ', cls: 'graph-curve' }].map((e, i) => (
+            <g key={e.name} transform={`translate(${W - R - 150} ${T + 16 + i * 18})`}>
+              <line x1={0} x2={22} y1={0} y2={0} className={e.cls} />
+              <text x={28} y={4} className="graph-legend-text">{e.name}</text>
+            </g>
+          ))}
+        </g>
+      )}
       {compare && (
         <g className="graph-legend">
           {[{ name: label, cls: 'graph-curve' }, { name: compare.label, cls: 'graph-curve-2' }].map((e, i) => (

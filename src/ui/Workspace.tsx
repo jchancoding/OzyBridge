@@ -10,6 +10,7 @@ import { addPreset, deletePreset, mergePresets, parsePresets, renamePreset, seri
 import { commitNumber, inRange, parseDecimal, stepValue } from '../core/step';
 import type { DeviceAdapter } from '../devices/types';
 import { EqGraph } from './EqGraph';
+import { MeasurementPicker, type OverlayMeasurement } from './MeasurementPicker';
 import './motion.css';
 import { PresetLibrary, PRESET_DRAG_TYPE } from './PresetLibrary';
 
@@ -131,6 +132,7 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
   const [compareId, setCompareId] = useState<number | null>(null);
   const [lastWrite, setLastWrite] = useState<{ id: number; profile: EqProfile; name: string } | null>(null);
   const [sweep, setSweep] = useState(0);
+  const [overlay, setOverlay] = useState<OverlayMeasurement | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
   const lastOn = useRef<number>(userSlots[0]?.id ?? 0);
   const shared = useRef<ReturnType<typeof decodeShareFragment> | null>(location.hash ? decodeShareFragment(location.hash) : null);
@@ -567,7 +569,8 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
       {shown && (
         <section className="eq-view">
           <h2 className="section-title">Slot {sel} {slotName(selected)}</h2>
-          <EqGraph profile={shown} label={slotName(selected) || `Slot ${sel}`} compare={compare} sweep={sweep} />
+          <EqGraph profile={shown} label={slotName(selected) || `Slot ${sel}`} compare={compare} sweep={sweep} measurement={overlay ?? undefined} />
+          <MeasurementPicker onChange={setOverlay} />
           <div className="preamp">
             <label className="label">Preamp</label>
             <NumField label="Preamp" unit="dB" value={shown.preamp} step={cap.step.gain} range={cap.preamp} resetKey={resetKey} onBlocked={setBlk('preamp')} onCommit={(v) => setDraft({ ...shown, preamp: v })} />

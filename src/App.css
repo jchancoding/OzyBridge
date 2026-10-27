@@ -161,6 +161,15 @@ body {
 .graph-clip { fill: var(--oz-danger); opacity: 0.08; }
 .graph-curve { fill: none; stroke: var(--oz-accent); stroke-width: 2.5; }
 .graph-curve-2 { fill: none; stroke: var(--oz-curve-2); stroke-width: 2.5; stroke-dasharray: 8 5; }
+.graph-fr-original { fill: none; stroke: var(--oz-fr-original); stroke-width: 2; }
+.graph-fr-eq { fill: none; stroke: var(--oz-fr-eq); stroke-width: 3; }
+.fr-picker { display: flex; flex-direction: column; gap: var(--oz-2); }
+.fr-picker__row { display: flex; align-items: center; gap: var(--oz-2); flex-wrap: wrap; }
+.fr-picker__list { list-style: none; margin: 0; padding: 0; max-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: var(--oz-1); border: 1px solid var(--oz-line); }
+.fr-picker__list .btn-secondary { width: 100%; text-align: left; }
+.fr-upload { display: inline-block; }
+.fr-error { color: var(--oz-danger); }
+.fr-credit a { color: var(--oz-accent-strong); }
 .graph-legend-text { font: 12px var(--oz-font-ui); fill: var(--oz-text); }
 .slot-compare { outline: 2px solid var(--oz-curve-2); outline-offset: -2px; }
 .badge-compare { font: 700 0.7rem var(--oz-font-mono); color: var(--oz-curve-2); border: 1px solid var(--oz-curve-2); padding: 0 var(--oz-1, 4px); }

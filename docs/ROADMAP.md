@@ -87,9 +87,21 @@ Phase 8 (closed 2026-10-27, PRs #13, #15-#20, 254 tests). Direction "Mirage", sp
 - Skipped: 8e skins. Still open: hover, stagger and sweep not yet seen with a device connected; BTR17 smoke test (connect, write one slot, drop a file) in both themes.
 - Lessons: executors cannot judge visuals. The planner had to redraw the sit, tea and gaze frames, move Ozy out of the animated `<main>` (its transform made `<main>` his fixed containing block), and swap solid text backgrounds for a halo (they boxed in the grid). Render frames and screenshot each wave before merging. Vitest returns '' for `?raw` CSS, so tests read files with `node:fs`. Other chats use the main checkout too; the planner verifies merged work in a detached worktree from `origin/main`, not by pulling there.
 
+## Phase 9: Frequency response overlay
+
+Show how the slot's EQ changes an IEM's measured frequency response: original vs equalized, like PeqDB's preset page. The measured unit is not the user's own, so the UI calls it an approximation.
+
+- Sources: (1) Upload Custom, a REW / squiglink `.txt` or `.csv` file, no network; (2) squiglink, live. Reviewer list from `https://squig.link/squigsites.json`, models from each database's `data/phone_book.json`, curves from `data/<file> L.txt` / `R.txt` (L and R averaged). Fetched on demand, cached in memory per session, so the list always matches squiglink.
+- Base URL per `urlType`: `subdomain` = `https://<username>.squig.link<folder>`, `labFolder` = `https://squig.link/lab/<username><folder>`, `altDomain` = `<altDomain><folder>`, `root` = `https://squig.link<folder>`. All send `Access-Control-Allow-Origin: *` (checked 2026-10-27). Hangout.Audio (crinacle) is excluded: it returns 403 for direct file requests and encrypts its data, and we do not work around that.
+- Credit: the selection reads "[brand model] measured by [reviewer]", with a link to the reviewer's database.
+- Fragility: any failed fetch or unparseable file shows a plain message and leaves the graph as it was. Nothing is retried automatically.
+- Specs: `docs/agents/tasks/phase-9a-measurement-core.md`, `phase-9b-overlay-ui.md`. Executors on Composer 2.5 / Sonnet low.
+
+Exit: upload and squiglink selection both draw original + equalized curves on the slot graph; tests and typecheck pass.
+
 ## Backlog (not scheduled)
 
-- Squiglink integration: open the current EQ in Squiglink, or overlay a headphone's measured response (read-only, user-initiated, no runtime network by default).
+- Squiglink: open the current EQ in Squiglink.
 - Monetisation stays non-intrusive: PayPal donation link in the footer; optional cosmetic skins or mascot variants later. No ads.
 
 Repo practice (2026-10-27): `main` is protected by a ruleset (PR required, CI `check` must pass, no force-push or deletion). Work on branches, merge with PR notes. MIT licence. Visitor counts via GoatCounter, cookie-free, dashboard behind the GoatCounter login.
