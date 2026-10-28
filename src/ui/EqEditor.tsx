@@ -4,7 +4,9 @@ import { clipCheck } from '../core/fit';
 import { addBandAt, deleteBand, firstUnused, isUnused, usedCount } from '../core/graphEdit';
 import { EqGraph } from './EqGraph';
 import { GraphKeysLegend } from './GraphKeysLegend';
+import { MeasurementPicker, type OverlayMeasurement } from './MeasurementPicker';
 import { NumField } from './NumField';
+import { TargetToggles, type TargetOverlay } from './TargetToggles';
 
 const GAIN_STEPS = [-1, -0.5, 0.5, 1];
 
@@ -32,6 +34,8 @@ export function EqEditor({
 }) {
   const [selectedBand, setSelectedBand] = useState<number | null>(null);
   const [blocked, setBlocked] = useState<Record<string, boolean>>({});
+  const [measurement, setMeasurement] = useState<OverlayMeasurement | null>(null);
+  const [targets, setTargets] = useState<TargetOverlay[]>([]);
   const eqViewRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -108,6 +112,8 @@ export function EqEditor({
         profile={shown}
         label={label}
         compare={compare}
+        measurement={measurement ?? undefined}
+        targets={targets}
         sweep={sweep}
         hintId="eq-graph-keys"
         onNotice={onNotice}
@@ -129,6 +135,11 @@ export function EqEditor({
         }}
       />
       <GraphKeysLegend id="eq-graph-keys" filterTypes={cap.filterTypes} />
+      <section className="overlays">
+        <span className="label">OVERLAYS</span>
+        <MeasurementPicker onChange={setMeasurement} />
+        <TargetToggles onChange={setTargets} />
+      </section>
       <p className="sr-only" aria-live="polite" aria-atomic="true">
         {selectedBand !== null && shown.bands[selectedBand]
           ? `Band ${String(selectedBand + 1).padStart(2, '0')}: ${shown.bands[selectedBand].freq} Hz, ${shown.bands[selectedBand].gain >= 0 ? '+' : ''}${shown.bands[selectedBand].gain.toFixed(1)} dB, Q ${shown.bands[selectedBand].q}`
