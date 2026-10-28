@@ -27,7 +27,7 @@ function pairs(): Pair[] {
   out.push(['--oz-on-danger', '--oz-danger', 4.5], ['--oz-on-ok', '--oz-ok', 4.5], ['--oz-on-accent', '--oz-accent-fill', 4.5]);
   out.push(['--oz-on-inverse', '--oz-inverse', 4.5]);
   out.push(['--oz-danger', '--oz-surface', 4.5], ['--oz-danger', '--oz-danger-wash', 4.5]);
-  for (const g of ['--oz-accent', '--oz-curve-2', '--oz-drop', '--oz-danger', '--oz-ok', '--oz-warn', '--oz-line-strong'])
+  for (const g of ['--oz-accent', '--oz-curve-2', '--oz-fr-original', '--oz-target', '--oz-drop', '--oz-danger', '--oz-ok', '--oz-warn', '--oz-line-strong'])
     out.push([g, '--oz-surface', 3]);
   out.push(['--oz-drop', '--oz-drop-wash', 3]);
   return out;

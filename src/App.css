@@ -493,3 +493,17 @@ img, svg, canvas { max-width: 100%; }
 @media (pointer: coarse) {
   .graph-keys { display: none; }
 }
+
+/* Phase 9d: overlays */
+.graph-fr-original { fill: none; stroke: var(--oz-fr-original); stroke-width: 2; }
+.graph-fr-eq { fill: none; stroke: var(--oz-text); stroke-width: 3; }
+.graph-target { fill: none; stroke: var(--oz-target); stroke-width: 1.5; }
+.overlays { display: flex; flex-direction: column; gap: var(--oz-2); padding: var(--oz-2) 0; }
+.overlays__row { display: flex; align-items: center; gap: var(--oz-2); flex-wrap: wrap; }
+.fr-picker { display: flex; flex-direction: column; gap: var(--oz-2); }
+.fr-picker__row { display: flex; align-items: center; gap: var(--oz-2); flex-wrap: wrap; }
+.fr-picker__list { list-style: none; margin: 0; padding: 0; max-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: var(--oz-1); border: 1px solid var(--oz-line); }
+.fr-picker__list .btn-secondary { width: 100%; text-align: left; }
+.fr-upload { display: inline-block; }
+.fr-error { color: var(--oz-danger); }
+.fr-credit a { color: var(--oz-accent-strong); }
