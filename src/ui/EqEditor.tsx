@@ -28,7 +28,7 @@ function EqPanelHeader({ index, title }: { index?: string; title: string }) {
 
 export function EqEditor({
   heading, profile: shown, limits: cap, resetKey, label, compare, sweep,
-  onChange, onEditStart, onEditEnd, onUndo, onRedo, onNotice, onBlockedChange, exportBar, children,
+  onChange, onEditStart, onEditEnd, onUndo, onRedo, onNotice, onBlockedChange, exportBar, targetAside, bandsHead, onAutoName, children,
 }: {
   heading: ReactNode;
   profile: EqProfile;
@@ -45,6 +45,9 @@ export function EqEditor({
   onNotice: (text: string) => void;
   onBlockedChange: (blocked: boolean) => void;
   exportBar?: ReactNode;
+  targetAside?: ReactNode;
+  bandsHead?: ReactNode;
+  onAutoName?: (name: string) => void;
   children?: ReactNode;
 }) {
   const [selectedBand, setSelectedBand] = useState<number | null>(null);
@@ -166,6 +169,7 @@ export function EqEditor({
       />
       <div className="target-row">
         <TargetToggles onChange={setTargets} />
+        {targetAside}
       </div>
       <GraphKeysLegend id="eq-graph-keys" filterTypes={cap.filterTypes} />
       <div className="eq-panels">
@@ -178,10 +182,11 @@ export function EqEditor({
           <AutoEqPanel
             measurements={overlays}
             limits={cap}
-            onApply={(profile) => {
+            onApply={(profile, generatedName) => {
               onEditStart();
               onChange(profile);
               onEditEnd();
+              if (generatedName) onAutoName?.(generatedName);
             }}
             onNotice={onNotice}
           />
@@ -189,6 +194,7 @@ export function EqEditor({
         </section>
         <section className="eq-panel eq-panel--bands">
           <EqPanelHeader index="03" title="Bands" />
+          {bandsHead}
           <p className="sr-only" aria-live="polite" aria-atomic="true">
             {selectedBand !== null && shown.bands[selectedBand]
               ? `Band ${String(selectedBand + 1).padStart(2, '0')}: ${shown.bands[selectedBand].freq} Hz, ${shown.bands[selectedBand].gain >= 0 ? '+' : ''}${shown.bands[selectedBand].gain.toFixed(1)} dB, Q ${shown.bands[selectedBand].q}`

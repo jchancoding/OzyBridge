@@ -199,17 +199,18 @@ export function MeasurementPicker({
     return items.some((x) => x.id === next.id);
   }
 
-  function addOverlay(entry: OverlayMeasurement, credit?: SquigCredit | { uploadName: string }) {
+  function addOverlay(entry: OverlayMeasurement, credit?: SquigCredit | { uploadName: string }): boolean {
     if (items.length >= MAX_OVERLAYS) {
       onNotice('You can overlay 3 IEMs. Remove one first.');
-      return;
+      return false;
     }
     if (isDuplicate(entry)) {
       onNotice('That measurement is already on the graph.');
-      return;
+      return false;
     }
     if (credit) setCredits((c) => ({ ...c, [entry.id]: credit }));
     onChange([...items, entry]);
+    return true;
   }
 
   function removeAt(index: number) {
@@ -235,7 +236,11 @@ export function MeasurementPicker({
         label: squigLabel,
         measurement,
       };
-      addOverlay(entry, { model: row.model, variant: row.variant, db: row.db });
+      if (addOverlay(entry, { model: row.model, variant: row.variant, db: row.db })) {
+        setQuery('');
+        setSelectedKey(null);
+        setReviewer('all');
+      }
     } catch {
       setError(`Could not load this measurement from ${row.db.reviewer}.`);
     } finally {
@@ -322,29 +327,34 @@ export function MeasurementPicker({
         </ul>
       )}
       {items.length > 0 && (
-        <ul className="fr-overlay-list" aria-label="Overlays on graph">
-          {items.map((item, i) => {
-            const credit = credits[item.id];
-            return (
-              <li key={item.id} className="fr-overlay-item">
-                <span className="fr-swatch" style={{ background: swatches[i] ?? swatches[0] }} aria-hidden />
-                <div className="fr-overlay-copy">
-                  <span className="fr-overlay-label">{item.label}</span>
-                  {credit && 'uploadName' in credit ? (
-                    <MeasurementCredit uploadName={credit.uploadName} showHint={false} />
-                  ) : credit ? (
-                    <MeasurementCredit model={credit.model} variant={credit.variant} db={credit.db} showHint={false} />
-                  ) : null}
-                </div>
-                <button type="button" className="fr-trash" aria-label={`Remove ${item.label}`} onClick={() => removeAt(i)}>
-                  <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-                    <path d="M4 7h16M9 7V5h6v2M7 7l1 12h8l1-12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" />
-                  </svg>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+        <>
+          <p className="hint">Dragging the EQ curve changes only the first IEM on the graph.</p>
+          <ul className="fr-overlay-list" aria-label="Overlays on graph">
+            {items.map((item, i) => {
+              const credit = credits[item.id];
+              return (
+                <li key={item.id} className="fr-overlay-item">
+                  <span className="fr-swatch" style={{ background: swatches[i] ?? swatches[0] }} aria-hidden />
+                  <div className="fr-overlay-copy">
+                    {credit && 'uploadName' in credit ? (
+                      <MeasurementCredit uploadName={credit.uploadName} showHint={false} />
+                    ) : credit ? (
+                      <MeasurementCredit model={credit.model} variant={credit.variant} db={credit.db} showHint={false} />
+                    ) : (
+                      <span className="fr-overlay-label">{item.label}</span>
+                    )}
+                    {i === 0 && <p className="hint">EQ applies here</p>}
+                  </div>
+                  <button type="button" className="fr-trash" aria-label={`Remove ${item.label}`} onClick={() => removeAt(i)}>
+                    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                      <path d="M4 7h16M9 7V5h6v2M7 7l1 12h8l1-12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" />
+                    </svg>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </>
       )}
       <div className="fr-picker__row">
         <label className="btn-secondary fr-upload">
