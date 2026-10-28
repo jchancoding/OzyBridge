@@ -55,7 +55,7 @@ body {
 .landing-bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: var(--oz-4);
   width: 100%;
   flex-wrap: wrap;
@@ -472,4 +472,24 @@ img, svg, canvas { max-width: 100%; }
   .app { padding: var(--oz-4) var(--oz-3); }
   .intro { padding: var(--oz-3) var(--oz-4); font-size: 1rem; }
   .intro__heading { font-size: 1.25rem; }
+}
+
+/* Phase 9c: OzyEQ and landing */
+.ozyeq-paste {
+  width: 100%;
+  box-sizing: border-box;
+  font: 0.875rem var(--oz-font-mono);
+  color: var(--oz-text);
+  background: var(--oz-surface-2);
+  border: 1px solid var(--oz-line);
+  padding: var(--oz-2);
+}
+@media (max-width: 600px) {
+  .bands .step { display: none; }
+  .bar > .btn-primary, .bar > .btn-secondary { width: 100%; }
+  .landing-bar { flex-wrap: wrap; }
+  .landing-bar > .btn-primary, .landing-bar > .btn-secondary { width: 100%; text-align: center; }
+}
+@media (pointer: coarse) {
+  .graph-keys { display: none; }
 }
