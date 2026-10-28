@@ -41,16 +41,28 @@ body {
 .intro__heading a:hover, .intro__heading a:focus-visible { text-decoration: underline; }
 .intro__highlight { color: var(--oz-accent-strong); }
 .intro__note { font-size: 0.875rem; color: var(--oz-text-3); }
-.supported-devices__subheading { border-bottom: 2px solid var(--oz-curve-2); display: inline-block; }
-.supported-devices__risk {
-  margin: 0 0 var(--oz-2);
-  max-width: 46rem;
+.intro__risk {
   padding-left: var(--oz-3);
   border-left: 2px solid var(--oz-drop);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   color: var(--oz-text-2);
 }
-.supported-devices { margin: 0; }
+.intro__credit {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--oz-accent-strong);
+}
+.landing-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--oz-4);
+  width: 100%;
+  flex-wrap: wrap;
+}
+.landing-bar__brand { display: flex; align-items: center; min-width: 0; }
+.supported-devices__subheading { border-bottom: 2px solid var(--oz-curve-2); display: inline-block; }
+.supported-devices { margin: 0; width: 100%; }
 .supported-devices__heading {
   margin: 0 0 var(--oz-2);
   font-family: var(--oz-font-display);
@@ -67,6 +79,14 @@ body {
   color: var(--oz-text-2);
 }
 .supported-devices__list li { margin: 0; }
+.supported-devices__list--grid {
+  list-style: none;
+  padding-left: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+  gap: var(--oz-1) var(--oz-6);
+  width: 100%;
+}
 .supported-devices__note {
   margin: 0;
   font-size: 0.8125rem;

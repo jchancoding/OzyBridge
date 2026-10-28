@@ -77,10 +77,11 @@ export function App() {
     }
   };
 
+  const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
   const verifiedFiio = FIIO_MODELS.filter((m) => !m.untested);
-  const untestedFiio = FIIO_MODELS.filter((m) => m.untested);
   const verifiedWalk = WALKPLAY_MODELS.filter((m) => !m.untested);
-  const untestedWalk = WALKPLAY_MODELS.filter((m) => m.untested);
+  const untestedWritable = FIIO_MODELS.filter((m) => m.untested).sort(byName);
+  const untestedReadOnly = WALKPLAY_MODELS.filter((m) => m.untested).sort(byName);
 
   if (adapter) {
     const walkplay = findWalkplayModel(adapter.info.vendorId, adapter.info.productId, adapter.info.productName);
@@ -109,8 +110,13 @@ export function App() {
   return (
     <>
       <main className="app screen">
-        <Stripes />
-        <h1 className="display">OzyBridge</h1>
+        <header className="landing-bar">
+          <div className="landing-bar__brand">
+            <Stripes />
+            <h1 className="display">OzyBridge</h1>
+          </div>
+          <button className="btn-primary" onClick={connect}>CONNECT</button>
+        </header>
         <section className="intro" aria-labelledby="intro-heading">
           <h2 id="intro-heading" className="intro__heading">
             Bring your EQ to your DAC, <span className="intro__highlight">without the vendor-app friction.</span>
@@ -141,8 +147,14 @@ export function App() {
             tries one small change on a single slot, puts everything back, and sends us the result. One passing test is
             usually enough for us to mark a device as supported.
           </p>
-          <p className="intro__note">
-            We&apos;re working hard to add more devices. Every test report speeds that up.
+          <p className="intro__risk">
+            Writable untested devices can be tried at your own risk. OzyBridge only sends documented EQ commands,
+            never touches firmware, and reads every write back. The realistic worst case is a wrong EQ in one slot,
+            which you can undo here or reset in the vendor app.
+          </p>
+          <p className="intro__credit">
+            Users whose verification test gets approved will be credited on the Supported Devices list. Type your
+            desired display name at the bottom of the test submission.
           </p>
         </section>
         <section className="supported-devices" aria-labelledby="supported-devices-heading">
@@ -157,29 +169,28 @@ export function App() {
               </ul>
             </>
           )}
-          {(untestedFiio.length > 0 || untestedWalk.length > 0) && (
+          {untestedWritable.length > 0 && (
             <>
               <h3 className="supported-devices__subheading">Untested</h3>
-              <ul className="supported-devices__list">
-                {untestedFiio.map((model) => (
+              <ul className="supported-devices__list supported-devices__list--grid">
+                {untestedWritable.map((model) => (
                   <li key={`${model.name}-u`}>{model.name}</li>
                 ))}
-                {untestedWalk.map((model) => (
-                  <li key={`${model.name}-w`}>{model.name} (read-only)</li>
+              </ul>
+            </>
+          )}
+          {untestedReadOnly.length > 0 && (
+            <>
+              <h3 className="supported-devices__subheading">Untested Read Only</h3>
+              <ul className="supported-devices__list supported-devices__list--grid">
+                {untestedReadOnly.map((model) => (
+                  <li key={`${model.name}-w`}>{model.name}</li>
                 ))}
               </ul>
-              {untestedFiio.length > 0 && (
-                <p className="supported-devices__risk">
-                  Writable untested devices can be tried at your own risk. OzyBridge only sends documented EQ commands,
-                  never touches firmware, and reads every write back. The realistic worst case is a wrong EQ in one slot,
-                  which you can undo here or reset in the vendor app.
-                </p>
-              )}
             </>
           )}
         </section>
         {disconnected && <p className="message">{disconnectedText(disconnected)}</p>}
-        <button className="btn-primary" onClick={connect}>CONNECT</button>
         {error && <p className="message error">{error}</p>}
         <Footer />
       </main>
