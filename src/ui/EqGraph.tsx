@@ -47,8 +47,18 @@ import { targetCurve } from '../core/targets';
 
 const TARGET_DASHES = ['2 4', '8 4', '12 4 2 4', '1 3'];
 const HANDLE_R_COARSE = 22;
-const HANDLE_SCALE_COARSE = 1.5;
 const OVERLAY_N = 260;
+/** Phone-width graphs drop axis titles and region names so the curve keeps the width. */
+const COMPACT_MAX_W = 760;
+const L_FULL = 62;
+const R_FULL = 14;
+const T_FULL = 44;
+const B_FULL = 52;
+const L_COMPACT = 36;
+const R_COMPACT = 10;
+const T_COMPACT = 16;
+const B_COMPACT = 28;
+const HANDLE_SIZE_COMPACT = 4.5;
 
 function isCoarsePointer(): boolean {
   return typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
@@ -56,10 +66,6 @@ function isCoarsePointer(): boolean {
 
 export const DEFAULT_GRAPH_W = 1000;
 export const DEFAULT_GRAPH_H = 420;
-const L = 62;
-const R = 14;
-const T = 44;
-const B = 52;
 const BASE_RANGE = 15;
 const RANGE_STEPS = [15, 18, 24, 30, 36, 48, 60, 72, 96];
 const THUMB_H = 48;
@@ -109,10 +115,25 @@ type CreateState = {
   blocked: boolean;
 };
 
-export type PlotGeom = { W: number; H: number; L: number; R: number; T: number; B: number; PW: number; PH: number };
+export type PlotGeom = {
+  W: number;
+  H: number;
+  L: number;
+  R: number;
+  T: number;
+  B: number;
+  PW: number;
+  PH: number;
+  compact: boolean;
+};
 
 export function plotGeom(w: number, h: number): PlotGeom {
-  return { W: w, H: h, L, R, T, B, PW: w - L - R, PH: h - T - B };
+  const compact = w < COMPACT_MAX_W;
+  const L = compact ? L_COMPACT : L_FULL;
+  const R = compact ? R_COMPACT : R_FULL;
+  const T = compact ? T_COMPACT : T_FULL;
+  const B = compact ? B_COMPACT : B_FULL;
+  return { W: w, H: h, L, R, T, B, PW: Math.max(0, w - L - R), PH: Math.max(0, h - T - B), compact };
 }
 
 const DEFAULT_GEOM = plotGeom(DEFAULT_GRAPH_W, DEFAULT_GRAPH_H);
@@ -400,7 +421,10 @@ export function EqGraph({
   const svgRef = useRef<SVGSVGElement>(null);
   const coarse = useMemo(() => isCoarsePointer(), []);
   const hitR = coarse ? Math.max(HANDLE_R, HANDLE_R_COARSE) : HANDLE_R;
-  const [size, setSize] = useState({ w: DEFAULT_GRAPH_W, h: DEFAULT_GRAPH_H });
+  const [size, setSize] = useState(() => {
+    if (typeof window === 'undefined') return { w: DEFAULT_GRAPH_W, h: DEFAULT_GRAPH_H };
+    return { w: Math.min(window.innerWidth, DEFAULT_GRAPH_W), h: DEFAULT_GRAPH_H };
+  });
   const geom = useMemo(() => plotGeom(size.w, size.h), [size]);
 
   const defaultV = useMemo(() => defaultView(editable?.cap.gain), [editable?.cap.gain]);
@@ -997,8 +1021,24 @@ export function EqGraph({
   const clipLineDb = -profile.preamp;
   const showClip = bandPeak + profile.preamp > 0.05;
   const clipY = mainPlotY(clipLineDb, viewForY, g);
-  const graphClass = `graph${editable ? ' graph-editable' : ''}${dragging ? ' graph-grabbing' : ''}${panning ? ' graph-panning' : ''}`;
+  const graphClass = `graph${geom.compact ? ' graph-compact' : ''}${editable ? ' graph-editable' : ''}${dragging ? ' graph-grabbing' : ''}${panning ? ' graph-panning' : ''}`;
   const scaleText = scaleLabel(plotView);
+  const legendEntries: { name: string; cls: string; dash?: string; stroke?: string }[] = [];
+  if (compare || overlayPaths) {
+    const clip = (name: string) => (geom.compact || name.length <= 18 ? name : `${name.slice(0, 17)}…`);
+    legendEntries.push({ name: clip(label), cls: 'graph-curve', stroke: palette.eq });
+    overlayPaths?.iems.forEach((m) => {
+      legendEntries.push({ name: clip(m.label), cls: 'graph-fr-iem', stroke: m.stroke });
+      if (m.equalized) {
+        const first = measurements?.[0]?.label ?? m.label;
+        legendEntries.push({ name: clip(`EQ on ${first}`), cls: 'graph-fr-eq', stroke: palette.equalized });
+      }
+    });
+    overlayPaths?.targets.forEach((t, i) => {
+      legendEntries.push({ name: clip(t.name), cls: 'graph-target', dash: TARGET_DASHES[i % TARGET_DASHES.length], stroke: t.stroke });
+    });
+    if (compare) legendEntries.push({ name: clip(compare.label), cls: 'graph-curve-2', dash: '8 5', stroke: palette.compare });
+  }
 
   const svgBody = (
     <svg
@@ -1037,7 +1077,7 @@ export function EqGraph({
         const x1 = freqX(r.to, geom);
         const rw = x1 - x0;
         const labelNeed = Math.max(r.name.length, r.range.length) * REGION_CHAR_PX + 4;
-        const showLabels = rw >= labelNeed;
+        const showLabels = !geom.compact && rw >= labelNeed;
         return (
         <g key={r.name}>
           <title>{`${r.title} ${r.range} Hz`}</title>
@@ -1114,51 +1154,47 @@ export function EqGraph({
       })()}
       {handles.map((h) => {
         const i = h.index;
-        const s = coarse ? HANDLE_SIZE * HANDLE_SCALE_COARSE : HANDLE_SIZE;
         const selected = editable?.selected === i;
+        const s = geom.compact ? (selected ? HANDLE_SIZE_COMPACT + 1.5 : HANDLE_SIZE_COMPACT) : HANDLE_SIZE;
         const off = !h.band.enabled || h.band.gain === 0;
         const cls = `graph-handle${selected ? ' graph-handle-selected' : ''}${off ? ' graph-handle-off' : ''}`;
         const drawY = h.offScreen === 'top' ? geom.T + 12 : h.offScreen === 'bottom' ? geom.T + geom.PH - 12 : h.y;
         const chevron = h.offScreen === 'top' ? `M${h.x},${drawY - 4} L${h.x - 5},${drawY + 3} L${h.x + 5},${drawY + 3} Z` : h.offScreen === 'bottom' ? `M${h.x},${drawY + 4} L${h.x - 5},${drawY - 3} L${h.x + 5},${drawY - 3} Z` : null;
+        const showIndex = !geom.compact || selected;
         return (
           <g key={i} className={cls} pointerEvents="none">
             {chevron ? <path d={chevron} className="graph-handle-shape" /> : (
               <polygon points={`${h.x},${h.y - s} ${h.x + s},${h.y} ${h.x},${h.y + s} ${h.x - s},${h.y}`} className="graph-handle-shape" />
             )}
-            <text x={h.x} y={drawY - s - 4 + (labelOffsets.get(i) ?? 0)} className="graph-handle-label" textAnchor="middle">
-              {String(i + 1).padStart(2, '0')}
-            </text>
+            {showIndex && (
+              <text x={h.x} y={drawY - s - 4 + (labelOffsets.get(i) ?? 0)} className="graph-handle-label" textAnchor="middle">
+                {String(i + 1).padStart(2, '0')}
+              </text>
+            )}
             {limitHint && dragging && selected && (
               <text x={h.x} y={drawY + s + 14} className="graph-limit-hint" textAnchor="middle">{limitHint}</text>
             )}
           </g>
         );
       })}
-      {(compare || overlayPaths) && (() => {
-        const truncate = (name: string) => (name.length > 18 ? `${name.slice(0, 17)}…` : name);
-        const entries: { name: string; cls: string; dash?: string; stroke?: string }[] = [{ name: label, cls: 'graph-curve', stroke: palette.eq }];
-        overlayPaths?.iems.forEach((m) => {
-          entries.push({ name: truncate(m.label), cls: 'graph-fr-iem', stroke: m.stroke });
-          if (m.equalized) {
-            const first = measurements?.[0]?.label ?? m.label;
-            entries.push({ name: `EQ on ${truncate(first)}`, cls: 'graph-fr-eq', stroke: palette.equalized });
-          }
-        });
-        overlayPaths?.targets.forEach((t, i) => entries.push({ name: t.name, cls: 'graph-target', dash: TARGET_DASHES[i % TARGET_DASHES.length], stroke: t.stroke }));
-        if (compare) entries.push({ name: compare.label, cls: 'graph-curve-2', stroke: palette.compare });
-        return (
+      {!geom.compact && legendEntries.length > 0 && (
           <g className="graph-legend" pointerEvents="none">
-            {entries.map((e, i) => (
+            {legendEntries.map((e, i) => (
               <g key={i} transform={`translate(${geom.W - geom.R - 150} ${geom.T + 16 + i * 18})`}>
                 <line x1={0} x2={22} y1={0} y2={0} className={e.cls} style={{ stroke: e.stroke }} strokeDasharray={e.dash} />
-                <text x={28} y={4} className="graph-legend-text">{truncate(e.name)}</text>
+                <text x={28} y={4} className="graph-legend-text">{e.name}</text>
               </g>
             ))}
           </g>
-        );
-      })()}
-      <text x={geom.L + geom.PW / 2} y={geom.H - 8} className="graph-axis" textAnchor="middle">Frequency (Hz)</text>
-      <text transform={`translate(14 ${geom.T + geom.PH / 2}) rotate(-90)`} className="graph-axis" textAnchor="middle">Gain (dB)</text>
+      )}
+      {geom.compact ? (
+        <text x={geom.L + 6} y={geom.T + 12} className="graph-axis graph-axis-unit" textAnchor="start">dB</text>
+      ) : (
+        <>
+          <text x={geom.L + geom.PW / 2} y={geom.H - 8} className="graph-axis" textAnchor="middle">Frequency (Hz)</text>
+          <text transform={`translate(14 ${geom.T + geom.PH / 2}) rotate(-90)`} className="graph-axis" textAnchor="middle">Gain (dB)</text>
+        </>
+      )}
     </svg>
   );
 
@@ -1167,6 +1203,16 @@ export function EqGraph({
       <div ref={wrapRef} className="graph-wrap">
         {svgBody}
       </div>
+      {geom.compact && legendEntries.length > 0 && (
+        <ul className="graph-legend-list" aria-label="Graph lines">
+          {legendEntries.map((e, i) => (
+            <li key={i}>
+              <span className="graph-legend-swatch" style={{ borderTopColor: e.stroke, borderTopStyle: e.dash ? 'dashed' : 'solid' }} />
+              <span>{e.name}</span>
+            </li>
+          ))}
+        </ul>
+      )}
       <div className="graph-toolbar">
         <button type="button" className="btn-secondary graph-remix" onClick={() => setPaletteIx((n) => n + 1)}>Remix colors</button>
       </div>

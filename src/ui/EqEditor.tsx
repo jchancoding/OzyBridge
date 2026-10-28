@@ -174,7 +174,7 @@ export function EqEditor({
       <GraphKeysLegend id="eq-graph-keys" filterTypes={cap.filterTypes} />
       <div className="eq-panels">
         <section className="eq-panel">
-          <EqPanelHeader index="01" title="Listen" />
+          <EqPanelHeader index="01" title="Add IEM/headphone measurement" />
           <MeasurementPicker items={overlays} iemColors={iemColors} onChange={setOverlays} onNotice={onNotice} />
         </section>
         <section className="eq-panel">

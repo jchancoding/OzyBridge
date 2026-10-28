@@ -25,6 +25,7 @@ function pairs(): Pair[] {
     for (const b of ['--oz-bg', '--oz-surface', '--oz-surface-2', '--oz-accent-wash']) out.push([t, b, 4.5]);
   for (const b of ['--oz-drop-wash', '--oz-danger-wash', '--oz-warn-wash']) out.push(['--oz-text', b, 4.5]);
   out.push(['--oz-on-danger', '--oz-danger', 4.5], ['--oz-on-ok', '--oz-ok', 4.5], ['--oz-on-accent', '--oz-accent-fill', 4.5]);
+  out.push(['--oz-on-secondary', '--oz-secondary-fill', 4.5]);
   out.push(['--oz-on-inverse', '--oz-inverse', 4.5]);
   out.push(['--oz-danger', '--oz-surface', 4.5], ['--oz-danger', '--oz-danger-wash', 4.5]);
   for (const g of ['--oz-accent', '--oz-curve-2', '--oz-fr-original', '--oz-fr-1', '--oz-fr-2', '--oz-fr-3', '--oz-target', '--oz-drop', '--oz-danger', '--oz-ok', '--oz-warn', '--oz-line-strong'])

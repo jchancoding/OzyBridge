@@ -28,6 +28,8 @@ Tokens below are the source of truth. They live in `src/ui/tokens.css` once scaf
 | `--oz-accent` | `#0086BD` | System accent: focus, selection, primary curve |
 | `--oz-accent-strong` | `#006FAA` | Accent text on light surfaces |
 | `--oz-accent-fill` | `#0077B6` | Primary button fill |
+| `--oz-secondary-fill` | `#6E32B0` | Secondary call-to-action fill (OzyEQ) |
+| `--oz-on-secondary` | `#FFFFFF` | Label on the secondary fill |
 | `--oz-accent-wash` | `#DFF4FC` | Selected backgrounds |
 | `--oz-signal` | `#FF5A1F` | Active / live / write in progress |
 | `--oz-warn` | `#A87400` | Constraint warnings (band dropped, value clamped) |
@@ -66,6 +68,8 @@ Set with `<html data-theme="dark">`. Tokens not listed (spacing, motion, `--oz-b
 | `--oz-accent` | `#22C3F5` |
 | `--oz-accent-strong` | `#6BD6FF` |
 | `--oz-accent-fill` | `#22C3F5` |
+| `--oz-secondary-fill` | `#C77DFF` |
+| `--oz-on-secondary` | `#0E131A` |
 | `--oz-accent-wash` | `#0F2E3D` |
 | `--oz-signal` | `#FF7A45` |
 | `--oz-warn` | `#FFC633` |
@@ -135,6 +139,7 @@ Scale (rem): `0.75` label, `0.875` body small, `1` body, `1.25` section, `1.75` 
 ## Components
 
 - **Button, primary:** accent fill, white uppercase label, chamfered. Hover lightens 8%, active uses `--oz-accent-strong`.
+- **Button, secondary call to action:** `--oz-secondary-fill` with `--oz-on-secondary`. Same chamfer and size as primary. Used when a second action should stand out and the cyan primary stays first (OzyEQ beside Connect).
 - **Button, secondary:** white fill, 1 px `--oz-line-strong` border, text `--oz-text`.
 - **Button, danger:** only for destructive actions (overwrite slot, reset). Requires confirmation.
 - **Slot card:** index tag, preset name (Inter 600), band count and preamp as numeric caption, mini curve thumbnail. Active slot gets the left accent bar and `--oz-accent-wash` background.

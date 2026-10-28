@@ -316,15 +316,18 @@ export function MeasurementPicker({
         </div>
       )}
       {selectedGroup && measureRows.length > 0 && (
-        <ul className="fr-picker__list" aria-label="Measurements" aria-busy={busy}>
-          {measureRows.map((row) => (
-            <li key={row.key}>
-              <button type="button" className="btn-secondary" disabled={busy} onClick={() => void pickRow(row)}>
-                {row.label}
-              </button>
-            </li>
-          ))}
-        </ul>
+        <>
+          <p className="fr-next" role="status">Choose a reviewer measurement to show this model.</p>
+          <ul key={selectedKey ?? ''} className="fr-picker__list fr-picker__list--cue" aria-label="Measurements" aria-busy={busy}>
+            {measureRows.map((row) => (
+              <li key={row.key}>
+                <button type="button" className="btn-secondary" disabled={busy} onClick={() => void pickRow(row)}>
+                  {row.label}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
       )}
       {items.length > 0 && (
         <>
@@ -357,7 +360,7 @@ export function MeasurementPicker({
         </>
       )}
       <div className="fr-picker__row">
-        <label className="btn-secondary fr-upload">
+        <label className="btn-primary fr-upload">
           Upload measurement
           <input type="file" accept=".txt,.csv" hidden onChange={(e) => { void upload(e.target.files?.[0]); e.target.value = ''; }} />
         </label>
