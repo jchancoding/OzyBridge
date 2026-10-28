@@ -6,6 +6,7 @@ import {
   deleteBand,
   dragGain,
   firstUnused,
+  nextAddIndex,
   freqFromRatio,
   isUnused,
   nearestBand,
@@ -198,5 +199,15 @@ describe('band slots', () => {
     const p = profile([band(1234, 4)]);
     const next = deleteBand(p, 0);
     expect(next.bands[0]).toEqual({ ...p.bands[0]!, gain: 0, enabled: false, freq: 1234 });
+  });
+
+  it('nextAddIndex skips reserved slots and used bands', () => {
+    const unused = { ...band(1000, 0), enabled: true };
+    const p = profile([unused, { ...unused, freq: 2000 }, { ...unused, freq: 3000 }]);
+    expect(nextAddIndex(p, [])).toBe(0);
+    expect(nextAddIndex(p, [0])).toBe(1);
+    expect(nextAddIndex(p, [0, 1, 2])).toBeNull();
+    const mixed = profile([band(500, 2), unused, { ...unused, freq: 4000 }]);
+    expect(nextAddIndex(mixed, [])).toBe(1);
   });
 });

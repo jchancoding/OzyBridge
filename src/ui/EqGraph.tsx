@@ -28,7 +28,10 @@ import {
   type GraphEditCap,
 } from '../core/graphEdit';
 import {
+  clampView,
   defaultView,
+  HALF_SPAN_NOTCHES,
+  VIEW_HALF_SPAN_MAX,
   panView,
   ticksFor,
   viewDbMax,
@@ -38,6 +41,18 @@ import {
 } from '../core/graphView';
 import { bandResponseDb, logFrequencies, profileResponseDb } from '../core/response';
 import { stepValue } from '../core/step';
+import { equalizedResponse, type Measurement } from '../core/measurement';
+import { GRAPH_PALETTES, useGraphTheme, type GraphPalette } from './graphPalettes';
+import { targetCurve } from '../core/targets';
+
+const TARGET_DASHES = ['2 4', '8 4', '12 4 2 4', '1 3'];
+const HANDLE_R_COARSE = 22;
+const HANDLE_SCALE_COARSE = 1.5;
+const OVERLAY_N = 260;
+
+function isCoarsePointer(): boolean {
+  return typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
+}
 
 export const DEFAULT_GRAPH_W = 1000;
 export const DEFAULT_GRAPH_H = 420;
@@ -342,15 +357,20 @@ export function EqGraph({
   thumb = false,
   label = 'Current',
   compare,
+  measurements,
+  targets,
   sweep = 0,
   editable,
   hintId,
   onNotice,
+  onColors,
 }: {
   profile: EqProfile;
   thumb?: boolean;
   label?: string;
   compare?: { profile: EqProfile; label: string };
+  measurements?: { label: string; measurement: Measurement }[];
+  targets?: { id: string; name: string; measurement: Measurement }[];
   sweep?: number;
   editable?: {
     selected: number | null;
@@ -365,10 +385,21 @@ export function EqGraph({
   };
   hintId?: string;
   onNotice?: (text: string) => void;
+  onColors?: (iem: GraphPalette['iem']) => void;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
+  const theme = useGraphTheme();
+  const [paletteIx, setPaletteIx] = useState(0);
+  const palette = GRAPH_PALETTES[theme][paletteIx % GRAPH_PALETTES[theme].length] ?? GRAPH_PALETTES.dark[0]!;
+  const onColorsRef = useRef(onColors);
+  onColorsRef.current = onColors;
+  useEffect(() => {
+    onColorsRef.current?.(palette.iem);
+  }, [palette]);
   const plotClipId = useId();
   const svgRef = useRef<SVGSVGElement>(null);
+  const coarse = useMemo(() => isCoarsePointer(), []);
+  const hitR = coarse ? Math.max(HANDLE_R, HANDLE_R_COARSE) : HANDLE_R;
   const [size, setSize] = useState({ w: DEFAULT_GRAPH_W, h: DEFAULT_GRAPH_H });
   const geom = useMemo(() => plotGeom(size.w, size.h), [size]);
 
@@ -408,15 +439,66 @@ export function EqGraph({
     return () => ro.disconnect();
   }, [thumb]);
 
+  const overlay = useMemo(() => {
+    const iems = measurements ?? [];
+    if (thumb || (iems.length === 0 && !(targets && targets.length))) return null;
+    const f = logFrequencies(OVERLAY_N);
+    const iemCurves = iems.map((m, index) => {
+      const eq = equalizedResponse(m.measurement, profile, f);
+      return {
+        label: m.label,
+        original: eq.original,
+        equalized: index === 0 ? eq.equalized : null,
+        stroke: palette.iem[index] ?? palette.iem[0],
+      };
+    });
+    return {
+      f,
+      iems: iemCurves,
+      targets: (targets ?? []).map((t, i) => ({
+        id: t.id,
+        name: t.name,
+        db: targetCurve(t.measurement, f),
+        stroke: palette.target[i] ?? palette.target[0],
+      })),
+    };
+  }, [thumb, measurements, targets, profile, palette]);
+  const overlayDb = useMemo(() => {
+    if (!overlay) return [] as number[];
+    const fromIems = overlay.iems.flatMap((m) => [...m.original, ...(m.equalized ?? [])]);
+    return [...fromIems, ...overlay.targets.flatMap((t) => t.db)].filter(Number.isFinite);
+  }, [overlay]);
+
   const autoRange = useMemo(() => {
     const n = thumb ? 60 : 260;
     const main = sampleCurve(profile, n, true);
     const cmp = !thumb && compare ? sampleCurve(compare.profile, 260, true) : null;
-    return graphDbRange(cmp ? [...main.db, ...cmp.db] : main.db);
-  }, [profile, compare, thumb]);
+    return graphDbRange([...main.db, ...(cmp ? cmp.db : []), ...overlayDb]);
+  }, [profile, compare, thumb, overlayDb]);
 
-  const staticView = useMemo(() => defaultView(), []);
+  const staticView = useMemo(
+    () => (overlayDb.length && autoRange > 24 ? clampView({ center: 0, halfSpan: autoRange }) : defaultView()),
+    [overlayDb.length, autoRange],
+  );
   const plotView = editable ? view : staticView;
+
+  const overlayKey = overlay
+    ? `${(measurements ?? []).map((m) => m.label).join('|')}|${(targets ?? []).map((t) => t.id).join(',')}`
+    : '';
+  const widenedFor = useRef('');
+  useEffect(() => {
+    // Widen once per overlay selection, so later zooming by the user is not undone on every edit.
+    if (widenedFor.current === overlayKey) return;
+    widenedFor.current = overlayKey;
+    if (!overlayKey || !editable || overlayDb.length === 0) return;
+    const v = viewRef.current;
+    const lo = Math.min(...overlayDb);
+    const hi = Math.max(...overlayDb);
+    if (lo >= viewDbMin(v) && hi <= viewDbMax(v)) return;
+    const needed = Math.max(Math.abs(hi - v.center), Math.abs(lo - v.center)) * 1.05;
+    const halfSpan = HALF_SPAN_NOTCHES.find((n) => n >= needed) ?? VIEW_HALF_SPAN_MAX;
+    if (halfSpan > v.halfSpan) setView(clampView({ center: v.center, halfSpan }));
+  }, [overlayKey, overlayDb, editable]);
 
   const drawn = useMemo(() => {
     const n = thumb ? 60 : 260;
@@ -437,13 +519,26 @@ export function EqGraph({
       peak: main.peak,
       bandPeak,
       ticks: thumb ? graphDbTicks(plotRange) : ticksFor(plotView),
+      overlayPaths: overlay
+        ? {
+            iems: overlay.iems.map((m) => ({
+              label: m.label,
+              original: toPath(overlay.f, m.original, (f) => freqX(f, g), (d) => mainPlotY(d, viewForY, g)),
+              equalized: m.equalized
+                ? toPath(overlay.f, m.equalized, (f) => freqX(f, g), (d) => mainPlotY(d, viewForY, g))
+                : null,
+              stroke: m.stroke,
+            })),
+            targets: overlay.targets.map((t) => ({ id: t.id, name: t.name, d: toPath(overlay.f, t.db, (f) => freqX(f, g), (d) => mainPlotY(d, viewForY, g)), stroke: t.stroke })),
+          }
+        : null,
       cmpPath: cmp ? toPath(cmp.f, cmp.db, (f) => freqX(f, g), (d) => mainPlotY(d, viewForY, g)) : null,
       viewForY,
       g,
     };
-  }, [profile, compare, thumb, autoRange, plotView, geom]);
+  }, [profile, compare, thumb, autoRange, plotView, geom, overlay]);
 
-  const { path, peak, bandPeak, ticks, cmpPath, viewForY, g } = drawn;
+  const { path, peak, bandPeak, ticks, cmpPath, overlayPaths, viewForY, g } = drawn;
   const allHandles = !thumb && editable ? bandHandles(profile, plotView, geom) : [];
   const handles = editable
     ? allHandles.filter((h) => !isUnused(h.band) || editable.selected === h.index)
@@ -595,7 +690,7 @@ export function EqGraph({
   const updateHover = (px: number, py: number) => {
     if (!editable || thumb) return;
     const pts = handleHitPoints(handles, geom);
-    setHoverBand(nearestBand(pts, px, py, HANDLE_R));
+    setHoverBand(nearestBand(pts, px, py, hitR));
   };
 
   const onPointerDown = (e: PointerEvent<SVGSVGElement>) => {
@@ -605,11 +700,11 @@ export function EqGraph({
     const { x: px, y: py } = clientToSvg(svg, e.clientX, e.clientY);
     pointerRef.current = { x: px, y: py };
     const pts = handleHitPoints(handles, geom);
-    const hit = nearestBand(pts, px, py, HANDLE_R);
+    const hit = nearestBand(pts, px, py, hitR);
     if (hit !== null) {
       e.preventDefault();
       safePointerCapture(svg, e.pointerId);
-      const overlap = handlesInRadius(handles, geom, px, py, HANDLE_R);
+      const overlap = handlesInRadius(handles, geom, px, py, hitR);
       const pt = pts[hit]!;
       dragRef.current = {
         index: hit,
@@ -914,7 +1009,7 @@ export function EqGraph({
       viewBox={`0 0 ${geom.W} ${geom.H}`}
       role="img"
       tabIndex={editable ? 0 : undefined}
-      aria-label={`EQ response, peak ${bandPeak.toFixed(1)} dB, scale ${scaleText}${compare ? `, compared with ${compare.label}` : ''}${ariaExtra}`}
+      aria-label={`EQ response, peak ${bandPeak.toFixed(1)} dB, scale ${scaleText}${compare ? `, compared with ${compare.label}` : ''}${measurements && measurements.length ? `, measurements ${measurements.map((m) => m.label).join(', ')}` : ''}${targets && targets.length ? `, targets ${targets.map((t) => t.name).join(', ')}` : ''}${ariaExtra}`}
       aria-describedby={hintId}
       onPointerDown={editable ? onPointerDown : undefined}
       onPointerMove={editable ? onPointerMove : undefined}
@@ -969,7 +1064,16 @@ export function EqGraph({
         {showClip && clipY > geom.T && (
           <rect x={geom.L} y={geom.T} width={geom.PW} height={clipY - geom.T} className="graph-clip" pointerEvents="none" />
         )}
-        {cmpPath && <path d={cmpPath} className="graph-curve-2" pointerEvents="none" />}
+        {overlayPaths?.iems.map((m, i) => (
+          <g key={i}>
+            <path d={m.original} className="graph-fr-iem" style={{ stroke: m.stroke }} pointerEvents="none" />
+            {m.equalized && <path d={m.equalized} className="graph-fr-eq" style={{ stroke: palette.equalized }} pointerEvents="none" />}
+          </g>
+        ))}
+        {overlayPaths?.targets.map((t, i) => (
+          <path key={t.id} d={t.d} className="graph-target" style={{ stroke: t.stroke }} strokeDasharray={TARGET_DASHES[i % TARGET_DASHES.length]} pointerEvents="none" />
+        ))}
+        {cmpPath && <path d={cmpPath} className="graph-curve-2" style={{ stroke: palette.compare }} pointerEvents="none" />}
         {bandPaths.map((bp) => (
           <path
             key={bp.index}
@@ -978,7 +1082,7 @@ export function EqGraph({
             pointerEvents="none"
           />
         ))}
-        <path d={path} className="graph-curve" pointerEvents="none" />
+        <path d={path} className="graph-curve" style={{ stroke: palette.eq }} pointerEvents="none" />
         {sweep > 0 && (
           <svg key={sweep} x={geom.L} y={geom.T} width={geom.PW} height={geom.PH} overflow="hidden" aria-hidden>
             <g className="graph-sweep" style={{ '--sweep-w': `${geom.PW}px` } as CSSProperties}>
@@ -1010,7 +1114,7 @@ export function EqGraph({
       })()}
       {handles.map((h) => {
         const i = h.index;
-        const s = HANDLE_SIZE;
+        const s = coarse ? HANDLE_SIZE * HANDLE_SCALE_COARSE : HANDLE_SIZE;
         const selected = editable?.selected === i;
         const off = !h.band.enabled || h.band.gain === 0;
         const cls = `graph-handle${selected ? ' graph-handle-selected' : ''}${off ? ' graph-handle-off' : ''}`;
@@ -1030,24 +1134,42 @@ export function EqGraph({
           </g>
         );
       })}
-      {compare && (
-        <g className="graph-legend">
-          {[{ name: label, cls: 'graph-curve' }, { name: compare.label, cls: 'graph-curve-2' }].map((e, i) => (
-            <g key={i} transform={`translate(${geom.W - geom.R - 150} ${geom.T + 16 + i * 18})`}>
-              <line x1={0} x2={22} y1={0} y2={0} className={e.cls} />
-              <text x={28} y={4} className="graph-legend-text">{e.name.length > 18 ? `${e.name.slice(0, 17)}…` : e.name}</text>
-            </g>
-          ))}
-        </g>
-      )}
+      {(compare || overlayPaths) && (() => {
+        const truncate = (name: string) => (name.length > 18 ? `${name.slice(0, 17)}…` : name);
+        const entries: { name: string; cls: string; dash?: string; stroke?: string }[] = [{ name: label, cls: 'graph-curve', stroke: palette.eq }];
+        overlayPaths?.iems.forEach((m) => {
+          entries.push({ name: truncate(m.label), cls: 'graph-fr-iem', stroke: m.stroke });
+          if (m.equalized) {
+            const first = measurements?.[0]?.label ?? m.label;
+            entries.push({ name: `EQ on ${truncate(first)}`, cls: 'graph-fr-eq', stroke: palette.equalized });
+          }
+        });
+        overlayPaths?.targets.forEach((t, i) => entries.push({ name: t.name, cls: 'graph-target', dash: TARGET_DASHES[i % TARGET_DASHES.length], stroke: t.stroke }));
+        if (compare) entries.push({ name: compare.label, cls: 'graph-curve-2', stroke: palette.compare });
+        return (
+          <g className="graph-legend" pointerEvents="none">
+            {entries.map((e, i) => (
+              <g key={i} transform={`translate(${geom.W - geom.R - 150} ${geom.T + 16 + i * 18})`}>
+                <line x1={0} x2={22} y1={0} y2={0} className={e.cls} style={{ stroke: e.stroke }} strokeDasharray={e.dash} />
+                <text x={28} y={4} className="graph-legend-text">{truncate(e.name)}</text>
+              </g>
+            ))}
+          </g>
+        );
+      })()}
       <text x={geom.L + geom.PW / 2} y={geom.H - 8} className="graph-axis" textAnchor="middle">Frequency (Hz)</text>
       <text transform={`translate(14 ${geom.T + geom.PH / 2}) rotate(-90)`} className="graph-axis" textAnchor="middle">Gain (dB)</text>
     </svg>
   );
 
   return (
-    <div ref={wrapRef} className="graph-wrap">
-      {svgBody}
+    <div className="graph-block">
+      <div ref={wrapRef} className="graph-wrap">
+        {svgBody}
+      </div>
+      <div className="graph-toolbar">
+        <button type="button" className="btn-secondary graph-remix" onClick={() => setPaletteIx((n) => n + 1)}>Remix colors</button>
+      </div>
     </div>
   );
 }

@@ -6,7 +6,7 @@ Current state for people and agents. Phase history lives in [`docs/ROADMAP.md`](
 
 ## Product
 
-Login-free static site that writes parametric EQ to USB DACs and amps over WebHID. Users build curves in Squiglink, AutoEQ, or PeqDB and bring them here. OzyBridge is a transfer tool, not an EQ designer.
+Login-free static site that writes parametric EQ to USB DACs and amps over WebHID. Users bring curves from Squiglink, AutoEQ, or PeqDB, or build them in OzyEQ (`?eq`), the same editor without a device, which works on any browser including phones.
 
 Live: https://jchancoding.github.io/OzyBridge/
 
@@ -16,6 +16,7 @@ Live: https://jchancoding.github.io/OzyBridge/
 - Phase 7a is closed: preset library, share links, compare, one-level undo, export-all JSON, KA15, SNOWSKY Melody, KA17, QX13.
 - Phase 7b is in progress on `main`: read-only Walkplay adapter (schemes 10, 15, 16, 18), `?verify` device test, feedback via FormSubmit, device-neutral landing copy.
 - Phase 8 (Mirage) is closed: dark and light tokens, glass chrome, motion toggle, Ozy mascot. Skins were skipped.
+- Phase 9 (branch `phase-9-ozyeq`): OzyEQ at `?eq`, landing without WebHID, shared `EqEditor`, squiglink measurement overlay, bundled target curves. Not yet checked on phones.
 
 Only the FiiO BTR17 is treated as hardware-verified. Every other listed model is `untested`.
 
@@ -48,14 +49,15 @@ Not in the model list yet: FiiO BTR13, Oak Nano, JadeAudio JA11, and the larger 
 - `src/core/` EQ model, parsers, fit, share links, presets, reports. No DOM, no WebHID.
 - `src/transport/` WebHID only. Bytes in, bytes out.
 - `src/devices/fiio/` and `src/devices/walkplay/` protocol plus per-model config.
-- `src/ui/` React. Devices only through `DeviceAdapter`.
+- `src/ui/` React. Devices only through `DeviceAdapter`. `EqEditor` is shared by the device workspace and OzyEQ.
 
 ## Network
 
-No backend in this repo. Two runtime calls, both documented in `AGENTS.md`:
+No backend in this repo. Three runtime calls, all documented in `AGENTS.md`:
 
 - Production page views to GoatCounter (`src/analytics.ts`): path and referrer only. Skipped when Do Not Track is on. Never device or EQ data.
 - User-initiated FormSubmit posts (`src/ui/submit.ts`) for feedback and `?verify` reports. The report is the text already on screen.
+- User-initiated squiglink GETs (`src/ui/squiglink.ts`) when the IEM picker opens. Target curves are same-origin files in `public/targets/`.
 
 ## Still open
 

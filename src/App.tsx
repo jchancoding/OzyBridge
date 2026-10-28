@@ -10,6 +10,7 @@ import { describeConnectError } from './ui/connectMessages';
 import { Feedback } from './ui/Feedback';
 import { Footer } from './ui/Footer';
 import { Mascot } from './ui/Mascot';
+import { OzyEq } from './ui/OzyEq';
 import './ui/mascot.css';
 import './ui/verify.css';
 import { Probe } from './ui/Probe';
@@ -47,19 +48,20 @@ export function App() {
     await attach(a, name);
   };
 
-  if (!isWebHidSupported()) {
+  const hid = isWebHidSupported();
+  const params = new URLSearchParams(location.search);
+  if (params.has('eq')) return <OzyEq />;
+  if (params.has('feedback')) return <Feedback />;
+  if (!hid && (params.has('bench') || params.has('probe') || params.has('verify'))) {
     return (
       <main className="app">
         <p className="message">OzyBridge needs Chrome or Edge on desktop (WebHID).</p>
       </main>
     );
   }
-
-  const params = new URLSearchParams(location.search);
   if (params.has('bench')) return <Bench />;
   if (params.has('probe')) return <Probe />;
   if (params.has('verify')) return <Verify />;
-  if (params.has('feedback')) return <Feedback />;
 
   const connect = async () => {
     setError(null);
@@ -115,8 +117,14 @@ export function App() {
             <Stripes />
             <h1 className="display">OzyBridge</h1>
           </div>
-          <button className="btn-primary" onClick={connect}>CONNECT</button>
+          {hid && <button className="btn-primary" onClick={connect}>CONNECT DAC</button>}
+          <a className="btn-secondary" href="?eq">OZYEQ</a>
         </header>
+        {!hid && (
+          <p className="message">
+            This browser can&apos;t connect to USB DACs. To read and write device EQ, open OzyBridge in Chrome or Edge on a computer. You can still build and export EQs in OzyEQ.
+          </p>
+        )}
         <section className="intro" aria-labelledby="intro-heading">
           <h2 id="intro-heading" className="intro__heading">
             Bring your EQ to your DAC, <span className="intro__highlight">without the vendor-app friction.</span>
@@ -132,12 +140,27 @@ export function App() {
           </p>
           <p className="intro__note">Close your device&apos;s own app before connecting.</p>
         </section>
-        {sharedLink?.ok && (
+        <section className="intro" aria-labelledby="ozyeq-cta-heading">
+          <h2 id="ozyeq-cta-heading" className="intro__heading">
+            <a href="?eq">Try OzyEQ: build an EQ without a device &rarr;</a>
+          </h2>
+          <p>
+            Shape a parametric EQ on any phone, tablet or computer, then download it as a Squiglink / AutoEQ .txt file for any EQ app, or send it to your DAC here later.
+          </p>
+        </section>
+        {sharedLink?.ok && hid && (
           <p className="message">
-            This link is the EQ &ldquo;{sharedLink.name}&rdquo;. Connect, and it will be previewed on screen and you choose which slot to write it to. Nothing is sent to the device until you confirm.
+            This link is the EQ &ldquo;{sharedLink.name}&rdquo;. Connect, and it will be previewed on screen and you choose which slot to write it to. Nothing is sent to the device until you confirm.{' '}
+            <a href={`?eq${location.hash}`}>Or open it in OzyEQ.</a>
+          </p>
+        )}
+        {sharedLink?.ok && !hid && (
+          <p className="message">
+            This link is the EQ &ldquo;{sharedLink.name}&rdquo;. <a href={`?eq${location.hash}`}>Open it in OzyEQ</a>
           </p>
         )}
         {sharedLink && !sharedLink.ok && <p className="message error">{sharedLink.errors[0]}</p>}
+        {hid && (
         <section className="intro verify-cta" aria-labelledby="verify-cta-heading">
           <h2 id="verify-cta-heading" className="intro__heading">
             <a href="?verify">Get your device supported: Run &amp; Submit a Verification Test &rarr;</a>
@@ -157,6 +180,7 @@ export function App() {
             desired display name at the bottom of the test submission.
           </p>
         </section>
+        )}
         <section className="supported-devices" aria-labelledby="supported-devices-heading">
           <h2 id="supported-devices-heading" className="supported-devices__heading">Supported devices</h2>
           {verifiedFiio.length + verifiedWalk.length > 0 && (
