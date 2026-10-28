@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { parseMeasurement, type Measurement } from '../core/measurement';
 import type { SquigDb, SquigModel } from '../core/squiglink';
 import { loadDbs, loadMeasurement, loadModels } from './squiglink';
@@ -130,6 +130,7 @@ export function MeasurementPicker({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [credits, setCredits] = useState<Record<string, SquigCredit | { uploadName: string }>>({});
+  const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let live = true;
@@ -265,6 +266,7 @@ export function MeasurementPicker({
   return (
     <div className="fr-picker">
       <input
+        ref={searchRef}
         id="fr-search"
         className="fr-search"
         type="search"
@@ -289,6 +291,7 @@ export function MeasurementPicker({
                   type="button"
                   className={`btn-secondary${sel ? ' fr-model-selected' : ''}`}
                   onClick={() => {
+                    searchRef.current?.blur();
                     setSelectedKey(key);
                     setReviewer('all');
                   }}

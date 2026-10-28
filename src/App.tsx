@@ -118,7 +118,7 @@ export function App() {
             <h1 className="display">OzyBridge</h1>
           </div>
           {hid && <button className="btn-primary" onClick={connect}>CONNECT DAC</button>}
-          <a className="btn-ozyeq" href="?eq">OZYEQ</a>
+          <a className="btn-ozyeq" href="?eq">Open OZYEQ</a>
         </header>
         {!hid && (
           <p className="message">

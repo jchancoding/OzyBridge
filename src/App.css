@@ -773,12 +773,12 @@ a.btn-primary, a.btn-secondary, a.btn-ozyeq { display: inline-flex; align-items:
 .fr-picker__list--cue { animation: fr-breathe 900ms var(--oz-ease) 3; }
 @keyframes fr-breathe {
   0%, 100% { border-color: var(--oz-line); background: transparent; }
-  50% { border-color: var(--oz-accent); background: var(--oz-accent-wash); }
+  50% { border-color: var(--oz-signal); background: var(--oz-drop-wash); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .fr-picker__list--cue { animation: none; border-color: var(--oz-accent); }
+  .fr-picker__list--cue { animation: none; border-color: var(--oz-signal); }
 }
-:root[data-motion='off'] .fr-picker__list--cue { animation: none; border-color: var(--oz-accent); }
+:root[data-motion='off'] .fr-picker__list--cue { animation: none; border-color: var(--oz-signal); }
 .fr-error { color: var(--oz-danger); }
 .fr-credit { overflow-wrap: anywhere; }
 .fr-credit a { color: var(--oz-accent-strong); }

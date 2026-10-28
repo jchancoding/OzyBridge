@@ -46,6 +46,6 @@ describe('App landing', () => {
     vi.stubGlobal('navigator', { hid: {} });
     const html = renderToStaticMarkup(<App />);
     expect(html).toContain('CONNECT DAC');
-    expect(html).toContain('OZYEQ');
+    expect(html).toContain('Open OZYEQ');
   });
 });
