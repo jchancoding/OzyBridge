@@ -11,8 +11,9 @@ OzyBridge started as a replacement for FiiO Control's EQ import and export. It n
 - Import and export Squiglink, AutoEQ, and PeqDB parametric EQ. FiiO `.xml` is an extra for FiiO devices.
 - Name slots, compare curves, keep a preset library in the browser, and share an EQ as a link.
 - Read every write back before calling it done. One-level undo of the last write.
-- OzyEQ (`?eq`): build and edit an EQ without a device, on any browser including phones and tablets, and download it as a Squiglink / AutoEQ `.txt`.
-- Overlay an IEM measurement from squiglink (or your own file) and target curves (Harman IE 2019, Harman MoA 2025, JM-1, PEQdB Diamond) on the EQ graph.
+- OzyEQ (`?eq`): build and edit an EQ without a device, on any browser including phones and tablets. Pick a device to keep the EQ inside what that model can store. Import by file, drop, or paste, then download a Squiglink / AutoEQ `.txt`, copy the text, or copy a share link.
+- Overlay up to three IEM measurements from [squig.link](https://squig.link/) reviewers, or your own file, plus target curves (Harman IE 2019, Harman MoA 2025, JM-1, PEQdB Diamond). Dragging the EQ curve changes the first IEM on the graph.
+- Match one IEM to another IEM or a target (5 or 10 bands). That replaces the bands and names the EQ `[IEM]-to-[target or other IEM]`.
 - Close the device's own app before connecting. Device features need Chrome or Edge on a computer (WebHID).
 
 ## Devices

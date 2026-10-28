@@ -65,7 +65,6 @@ export function OzyEq() {
   const [base, setBase] = useState<EqProfile>(() => initial?.profile ?? emptyProfile(limits));
   const [notice, setNotice] = useState<Notice>(null);
   const [resetN, setResetN] = useState(0);
-  const [pasteText, setPasteText] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
   const { shown, canUndo, canRedo, clear, apply, beginDrag, endDrag, undo, redo } = useEqDraft(base);
@@ -205,43 +204,6 @@ export function OzyEq() {
             {(notice.kind === 'error' || notice.kind === 'warn') && <button className="btn-secondary" onClick={() => setNotice(null)}>Dismiss</button>}
           </div>
         )}
-        <section className="eq-panel">
-          <header className="eq-panel__head">
-            <span className="eq-panel__title">File</span>
-          </header>
-          <div className="eq-panel__rule" aria-hidden />
-        <div className="actions">
-        <section className="action-group">
-          <label className="label" htmlFor="ozyeq-device">Device limits</label>
-          <select id="ozyeq-device" value={device} onChange={(e) => onDevice(e.target.value)}>
-            <option value={NO_DEVICE}>No device (10 bands)</option>
-            {DEVICES.map((d) => <option key={d.name} value={d.name}>{d.name}</option>)}
-          </select>
-          <p className="hint">Pick your DAC to keep the EQ within what it can store.</p>
-        </section>
-        <section className="action-group">
-          <label className="label" htmlFor="ozyeq-name">EQ name</label>
-          <input id="ozyeq-name" type="text" value={name} onChange={(e) => setName(e.target.value)} />
-        </section>
-        <section className="action-group">
-          <h3 className="label">Import</h3>
-          <div className="bar">
-            <button className="btn-primary" onClick={() => fileRef.current?.click()}>Choose file (.txt / .xml)</button>
-            <button className="btn-secondary" onClick={() => void pasteButton()}>Paste from clipboard</button>
-          </div>
-          <label className="hint" htmlFor="ozyeq-paste">Or paste EQ text here</label>
-          <textarea id="ozyeq-paste" className="ozyeq-paste" rows={6} value={pasteText} onChange={(e) => setPasteText(e.target.value)} />
-          <div className="bar">
-            <button className="btn-secondary" disabled={!pasteText.trim()} onClick={() => importText(pasteText, 'paste.txt')}>Load</button>
-          </div>
-          <input ref={fileRef} type="file" accept=".txt,.xml" hidden onChange={(e) => {
-            const f = e.target.files?.[0];
-            e.target.value = '';
-            if (f) void f.text().then((t) => importText(t, f.name));
-          }} />
-        </section>
-        </div>
-        </section>
         <EqEditor
           heading="EQ"
           profile={current}
@@ -256,6 +218,33 @@ export function OzyEq() {
           onNotice={(text) => setNotice({ kind: 'error', text })}
           onBlockedChange={() => {}}
           exportBar={exportButtons}
+          onAutoName={setName}
+          targetAside={(
+            <span className="device-limits tip">
+              <label className="label" htmlFor="ozyeq-device">Device limits</label>
+              <select id="ozyeq-device" value={device} aria-describedby="ozyeq-device-tip" onChange={(e) => onDevice(e.target.value)}>
+                <option value={NO_DEVICE}>No device (10 bands)</option>
+                {DEVICES.map((d) => <option key={d.name} value={d.name}>{d.name}</option>)}
+              </select>
+              <span id="ozyeq-device-tip" className="tip__bubble" role="tooltip">Limits your EQ settings to that specific device.</span>
+            </span>
+          )}
+          bandsHead={(
+            <div className="bands-head">
+              <label className="label" htmlFor="ozyeq-name">EQ name</label>
+              <input id="ozyeq-name" type="text" value={name} onChange={(e) => setName(e.target.value)} />
+              <h3 className="label">Import EQ</h3>
+              <div className="bar">
+                <button className="btn-primary" onClick={() => fileRef.current?.click()}>Choose file (.txt / .xml)</button>
+                <button className="btn-secondary" onClick={() => void pasteButton()}>Paste from clipboard</button>
+              </div>
+              <input ref={fileRef} type="file" accept=".txt,.xml" hidden onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.target.value = '';
+                if (f) void f.text().then((t) => importText(t, f.name));
+              }} />
+            </div>
+          )}
         >
           <div className="bar">
             <button className="btn-secondary" disabled={!canUndo} onClick={undo}>Undo</button>
