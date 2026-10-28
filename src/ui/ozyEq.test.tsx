@@ -20,7 +20,12 @@ describe('OzyEq', () => {
     expect(html).toContain('OzyEQ');
     expect(html).toContain('No device (10 bands)');
     expect(html).toContain('Download .txt (Squiglink / AutoEQ)');
-    expect(html).toContain('Or paste EQ text here');
+    expect(html).toContain('Paste from clipboard');
+    expect(html).toContain('EQ name');
+    expect(html).toContain('Import EQ');
+    expect(html).toContain('Limits your EQ settings to that specific device.');
+    expect(html).not.toContain('Or paste EQ text here');
+    expect(html).not.toContain('>File<');
   });
 });
 

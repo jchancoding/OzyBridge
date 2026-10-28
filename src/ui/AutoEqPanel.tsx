@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { EqLimits, EqProfile } from '../core/eq';
 import { fitAutoEq } from '../core/autoEqFit';
 import { TARGETS } from '../core/targets';
+import { autoEqName } from './autoEqName';
 import { loadTarget } from './TargetToggles';
 import type { OverlayMeasurement } from './MeasurementPicker';
 
@@ -66,7 +67,7 @@ export function AutoEqPanel({
 }: {
   measurements: OverlayMeasurement[];
   limits: EqLimits;
-  onApply: (profile: EqProfile) => void;
+  onApply: (profile: EqProfile, name: string) => void;
   onNotice: (text: string) => void;
 }) {
   const [fromId, setFromId] = useState('');
@@ -109,7 +110,9 @@ export function AutoEqPanel({
         bandCount,
         limits,
       });
-      onApply(result.profile);
+      const toLabel = toOverlay?.label ?? toTarget?.name ?? '';
+      const name = autoEqName(fromItem.label, toLabel);
+      onApply(result.profile, name);
       onNotice(`Matched with ${enabledBandCount(result.profile)} bands. About ${result.errorDb.toFixed(1)} dB off.`);
     } catch {
       onNotice('Auto match failed. Try another pair or fewer bands.');
