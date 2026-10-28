@@ -90,6 +90,7 @@ export function Verify() {
     notes: '',
   }));
   const [notes, setNotes] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [displayText, setDisplayText] = useState('');
   const [adapter, setAdapter] = useState<DeviceAdapter | null>(null);
   const [backup, setBackup] = useState<EqProfile | null>(null);
@@ -389,6 +390,7 @@ export function Verify() {
       model: fullReport.device.name ?? 'unknown',
       report: reportText,
       ...(notes.trim() ? { notes: notes.trim() } : {}),
+      ...(displayName.trim() ? { displayName: displayName.trim() } : {}),
     });
     if (ok) setSent(true);
     else setSendFailed(true);
@@ -456,6 +458,16 @@ export function Verify() {
           <label className="verify-field">
             <span className="label">Notes (optional)</span>
             <textarea className="verify-textarea" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </label>
+          <label className="verify-field">
+            <span className="label">Display name</span>
+            <input
+              className="verify-input"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              autoComplete="nickname"
+              placeholder="Name to credit on the supported list"
+            />
           </label>
           <div className="bench-row">
             {FORMSUBMIT_ID && (
