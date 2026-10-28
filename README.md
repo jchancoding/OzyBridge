@@ -11,7 +11,9 @@ OzyBridge started as a replacement for FiiO Control's EQ import and export. It n
 - Import and export Squiglink, AutoEQ, and PeqDB parametric EQ. FiiO `.xml` is an extra for FiiO devices.
 - Name slots, compare curves, keep a preset library in the browser, and share an EQ as a link.
 - Read every write back before calling it done. One-level undo of the last write.
-- Close the device's own app before connecting. Chrome and Edge only (WebHID).
+- OzyEQ (`?eq`): build and edit an EQ without a device, on any browser including phones and tablets, and download it as a Squiglink / AutoEQ `.txt`.
+- Overlay an IEM measurement from squiglink (or your own file) and target curves (Harman IE 2019, Harman MoA 2025, JM-1, PEQdB Diamond) on the EQ graph.
+- Close the device's own app before connecting. Device features need Chrome or Edge on a computer (WebHID).
 
 ## Devices
 
@@ -40,7 +42,7 @@ Have a DAC that is missing or untested? Open the site and use **device test** (`
 
 ## Requirements
 
-- **Browser:** Chrome or Edge on desktop. Other browsers get an unsupported message.
+- **Browser:** Chrome or Edge on desktop for device features. Other browsers, phones and tablets get OzyEQ and an explanation.
 - **Device:** USB DAC from the list above, for connect and EQ. The rest of the site works without one.
 - **Development:** Node.js 22+ and npm.
 
@@ -57,6 +59,7 @@ Open the URL Vite prints (usually `http://localhost:5173/`) and use **Connect**.
 
 | Query | Page |
 | --- | --- |
+| `?eq` | OzyEQ, the EQ editor without a device |
 | `?verify` | Guided device test and report |
 | `?feedback` | Feedback form |
 | `?bench` | Low-level adapter checks on hardware |
@@ -85,7 +88,7 @@ Workflow: [`.github/workflows/pages.yml`](.github/workflows/pages.yml).
 1. On GitHub: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
 2. Push to `main`. CI runs tests, builds `dist/`, and deploys.
 
-The site is static. There is no app backend. In production, a page view goes to [GoatCounter](https://www.goatcounter.com/) (path and referrer, no cookies, no EQ data). Feedback and device reports are sent only when you press Send, through [FormSubmit](https://formsubmit.co/).
+The site is static. There is no app backend. In production, a page view goes to [GoatCounter](https://www.goatcounter.com/) (path and referrer, no cookies, no EQ data). Feedback and device reports are sent only when you press Send, through [FormSubmit](https://formsubmit.co/). Squiglink measurements are fetched from the reviewer's database only when you open the IEM picker.
 
 ## Licence
 

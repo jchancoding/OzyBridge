@@ -14,8 +14,9 @@ MVP target: FiiO BTR17 over WebHID. Later: other FiiO models, then other vendors
 
 - Vite, TypeScript (strict), React, plain CSS with tokens from `src/ui/tokens.css`.
 - Vitest for unit tests. No backend, no accounts, no cookies.
-- Allowed runtime network calls: one cookie-free GoatCounter page view (`src/analytics.ts`) (path and referrer only, never device or EQ data), and user-initiated FormSubmit posts from `src/ui/submit.ts` (feedback and device reports). Reports contain only what the user sees on screen before sending. Nothing is sent automatically.
-- Chrome/Edge only (WebHID). Feature-detect and show a clear unsupported message elsewhere.
+- Allowed runtime network calls: one cookie-free GoatCounter page view (`src/analytics.ts`) (path and referrer only, never device or EQ data), user-initiated FormSubmit posts from `src/ui/submit.ts` (feedback and device reports), and user-initiated GET requests to squiglink databases from `src/ui/squiglink.ts` (reviewer index, phone books and measurement files; no query strings, never device or EQ data). Reports contain only what the user sees on screen before sending. Nothing is sent automatically.
+- Squiglink measurements are fetched live, never bundled into the repo, and always shown as "[model] measured by [reviewer]". Target curves are bundled in `public/targets/` and credited in `public/targets/README.md`.
+- Device features are Chrome/Edge desktop only (WebHID), detected by `navigator.hid`, never by user agent. Without it the landing page, OzyEQ (`?eq`) and feedback still work; device pages show a clear unsupported message.
 
 ## Architecture boundaries
 

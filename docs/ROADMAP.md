@@ -87,9 +87,24 @@ Phase 8 (closed 2026-10-27, PRs #13, #15-#20, 254 tests). Direction "Mirage", sp
 - Skipped: 8e skins. Still open: hover, stagger and sweep not yet seen with a device connected; BTR17 smoke test (connect, write one slot, drop a file) in both themes.
 - Lessons: executors cannot judge visuals. The planner had to redraw the sit, tea and gaze frames, move Ozy out of the animated `<main>` (its transform made `<main>` his fixed containing block), and swap solid text backgrounds for a halo (they boxed in the grid). Render frames and screenshot each wave before merging. Vitest returns '' for `?raw` CSS, so tests read files with `node:fs`. Other chats use the main checkout too; the planner verifies merged work in a detached worktree from `origin/main`, not by pulling there.
 
+## Phase 9: OzyEQ and response overlays
+
+OzyBridge is now partly an EQ designer: EQ design goes hand in hand with DAC import and export. Decided 2026-10-28.
+
+- OzyEQ (`?eq`): the slot editor without a device, on every browser including phones and tablets. Limits come from a chosen device model, or "No device" (10 bands, PK/LSC/HSC, ±12 dB, Q 0.1-10). Import Squiglink / AutoEQ `.txt` or FiiO `.xml` by file, paste or drop; export `.txt` download, copied text, or a share link that opens the device flow on desktop. Draft kept in `ozy-eq-draft`.
+- Landing without WebHID: no CONNECT DAC, a plain message pointing to Chrome or Edge on a computer, OzyEQ as the next step. Desktop header: CONNECT DAC and OZYEQ left-aligned next to the brand.
+- Shared editor: `src/ui/EqEditor.tsx`, `useEqDraft.ts`, `NumField.tsx` serve both the device workspace and OzyEQ.
+- Measurement overlay: an IEM from squiglink (live, user-initiated, cached per session) or an uploaded REW / squiglink file, drawn as original and equalized. Base URL rules per `urlType` in `src/core/squiglink.ts`; all databases send `Access-Control-Allow-Origin: *` (checked 2026-10-27). Hangout.Audio (crinacle) is excluded: it blocks direct file requests and encrypts its data. Credit reads "[model] measured by [reviewer]".
+- Targets: Harman IE 2019, Harman MoA 2025, JM-1 (10 dB tilt) from squig.link, PEQdB Diamond supplied by the owner. Bundled in `public/targets/`, loaded same-origin on toggle, all normalised to 0 dB at 1 kHz. Adding one is a file plus an entry in `src/core/targets.ts`.
+- Supersedes the unmerged `phase-9-fr-overlay` branch (built before the editable graph); its core and picker were ported.
+- Specs: `docs/agents/tasks/phase-9a-eq-editor.md` to `phase-9d-overlays-ui.md`.
+
+Exit: OzyEQ usable on an iPhone, an Android phone and an iPad (not yet checked on hardware); overlays drawn in both editors; tests, typecheck and build pass.
+
 ## Backlog (not scheduled)
 
-- Squiglink integration: open the current EQ in Squiglink, or overlay a headphone's measured response (read-only, user-initiated, no runtime network by default).
+- Squiglink: open the current EQ in Squiglink.
+- AutoEQ to a target inside OzyEQ.
 - Monetisation stays non-intrusive: PayPal donation link in the footer; optional cosmetic skins or mascot variants later. No ads.
 
 Repo practice (2026-10-27): `main` is protected by a ruleset (PR required, CI `check` must pass, no force-push or deletion). Work on branches, merge with PR notes. MIT licence. Visitor counts via GoatCounter, cookie-free, dashboard behind the GoatCounter login.
