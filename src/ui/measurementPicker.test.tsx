@@ -8,11 +8,13 @@ afterEach(() => vi.unstubAllGlobals());
 const rew = Array.from({ length: 40 }, (_, i) => `${(20 * Math.pow(1000, i / 39)).toFixed(2)}\t${70 + (i % 3)}`).join('\n');
 
 describe('measurement picker', () => {
-  it('fetches nothing before the button is clicked', () => {
+  it('fetches nothing on static render', () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
-    const html = renderToStaticMarkup(<MeasurementPicker onChange={() => {}} />);
-    expect(html).toContain('Compare with an IEM');
+    const html = renderToStaticMarkup(<MeasurementPicker items={[]} onChange={() => {}} onNotice={() => {}} />);
+    expect(html).toContain('id="fr-search"');
+    expect(html).toContain('Search an IEM, for example Moondrop Aria');
+    expect(html).not.toContain('Compare with an IEM');
     expect(fetchMock).not.toHaveBeenCalled();
   });
 

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { EqBand, EqLimits, EqProfile, FilterType } from '../core/eq';
 import { clipCheck } from '../core/fit';
-import { addBandAt, deleteBand, firstUnused, isUnused, usedCount } from '../core/graphEdit';
+import { addBandAt, deleteBand, isUnused, usedCount } from '../core/graphEdit';
+import { AutoEqPanel } from './AutoEqPanel';
 import { EqGraph } from './EqGraph';
 import { GraphKeysLegend } from './GraphKeysLegend';
 import { MeasurementPicker, type OverlayMeasurement } from './MeasurementPicker';
@@ -11,6 +12,27 @@ import { TargetToggles, type TargetOverlay } from './TargetToggles';
 const GAIN_STEPS = [-1, -0.5, 0.5, 1];
 
 type ChangeOpts = { coalesceKey?: string; skipPush?: boolean };
+
+function nextAddIndex(profile: EqProfile, reserved: readonly number[]): number | null {
+  const skip = new Set(reserved);
+  for (let i = 0; i < profile.bands.length; i++) {
+    const b = profile.bands[i];
+    if (b && isUnused(b) && !skip.has(i)) return i;
+  }
+  return null;
+}
+
+function EqPanelHeader({ index, title }: { index?: string; title: string }) {
+  return (
+    <>
+      <header className="eq-panel__head">
+        {index && <span className="eq-panel__index">{index}</span>}
+        <span className="eq-panel__title">{title}</span>
+      </header>
+      <div className="eq-panel__rule" aria-hidden />
+    </>
+  );
+}
 
 export function EqEditor({
   heading, profile: shown, limits: cap, resetKey, label, compare, sweep,
@@ -33,13 +55,15 @@ export function EqEditor({
   children?: ReactNode;
 }) {
   const [selectedBand, setSelectedBand] = useState<number | null>(null);
+  const [opened, setOpened] = useState<number[]>([]);
   const [blocked, setBlocked] = useState<Record<string, boolean>>({});
-  const [measurement, setMeasurement] = useState<OverlayMeasurement | null>(null);
+  const [overlays, setOverlays] = useState<OverlayMeasurement[]>([]);
   const [targets, setTargets] = useState<TargetOverlay[]>([]);
   const eqViewRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     setSelectedBand(null);
+    setOpened([]);
     setBlocked({});
   }, [resetKey]);
 
@@ -83,11 +107,12 @@ export function EqEditor({
   };
 
   const addBandSlot = () => {
-    const idx = firstUnused(shown);
+    const idx = nextAddIndex(shown, opened);
     if (idx === null) {
       onNotice(`All ${cap.maxBands} bands are in use. Delete one first.`);
       return;
     }
+    setOpened((o) => [...o, idx]);
     setSelectedBand(idx);
     onChange({
       ...shown,
@@ -97,6 +122,7 @@ export function EqEditor({
 
   const removeBand = (i: number) => {
     onChange(deleteBand(shown, i));
+    setOpened((o) => o.filter((x) => x !== i));
     if (selectedBand === i) setSelectedBand(null);
   };
   const nudgeGain = (i: number, delta: number) => {
@@ -105,6 +131,8 @@ export function EqEditor({
     setBand(i, { gain: Math.min(cap.gain.max, Math.max(cap.gain.min, Number((b.gain + delta).toFixed(1)))) });
   };
 
+  const addSlot = nextAddIndex(shown, opened);
+
   return (
     <section className="eq-view" ref={eqViewRef}>
       <h2 className="section-title">{heading}</h2>
@@ -112,7 +140,7 @@ export function EqEditor({
         profile={shown}
         label={label}
         compare={compare}
-        measurement={measurement ?? undefined}
+        measurements={overlays}
         targets={targets}
         sweep={sweep}
         hintId="eq-graph-keys"
@@ -135,73 +163,91 @@ export function EqEditor({
         }}
       />
       <GraphKeysLegend id="eq-graph-keys" filterTypes={cap.filterTypes} />
-      <section className="overlays">
-        <span className="label">OVERLAYS</span>
-        <MeasurementPicker onChange={setMeasurement} />
-        <TargetToggles onChange={setTargets} />
-      </section>
-      <p className="sr-only" aria-live="polite" aria-atomic="true">
-        {selectedBand !== null && shown.bands[selectedBand]
-          ? `Band ${String(selectedBand + 1).padStart(2, '0')}: ${shown.bands[selectedBand].freq} Hz, ${shown.bands[selectedBand].gain >= 0 ? '+' : ''}${shown.bands[selectedBand].gain.toFixed(1)} dB, Q ${shown.bands[selectedBand].q}`
-          : ''}
-      </p>
-      <div className="preamp">
-        <label className="label">Preamp</label>
-        <NumField label="Preamp" unit="dB" value={shown.preamp} step={cap.step.gain} range={cap.preamp} resetKey={resetKey} onBlocked={setBlk('preamp')} onCommit={(v) => onChange({ ...shown, preamp: v })} />
-        <span className="unit">dB</span>
-        <span className="hint">Tip: drag along the curve to add a band, drag points to edit. See Graph shortcuts for more.</span>
+      <div className="eq-panels">
+        <section className="eq-panel">
+          <EqPanelHeader index="01" title="Listen" />
+          <MeasurementPicker items={overlays} onChange={setOverlays} onNotice={onNotice} />
+          <TargetToggles onChange={setTargets} />
+        </section>
+        <section className="eq-panel">
+          <EqPanelHeader index="02" title="Match" />
+          <AutoEqPanel
+            measurements={overlays}
+            limits={cap}
+            onApply={(profile) => {
+              onEditStart();
+              onChange(profile);
+              onEditEnd();
+            }}
+            onNotice={onNotice}
+          />
+        </section>
+        <section className="eq-panel eq-panel--bands">
+          <EqPanelHeader index="03" title="Bands" />
+          <p className="sr-only" aria-live="polite" aria-atomic="true">
+            {selectedBand !== null && shown.bands[selectedBand]
+              ? `Band ${String(selectedBand + 1).padStart(2, '0')}: ${shown.bands[selectedBand].freq} Hz, ${shown.bands[selectedBand].gain >= 0 ? '+' : ''}${shown.bands[selectedBand].gain.toFixed(1)} dB, Q ${shown.bands[selectedBand].q}`
+              : ''}
+          </p>
+          <div className="preamp">
+            <label className="label">Preamp</label>
+            <NumField label="Preamp" unit="dB" value={shown.preamp} step={cap.step.gain} range={cap.preamp} resetKey={resetKey} onBlocked={setBlk('preamp')} onCommit={(v) => onChange({ ...shown, preamp: v })} />
+            <span className="unit">dB</span>
+            <span className="hint">Tip: drag along the curve to add a band, drag points to edit. See Graph shortcuts for more.</span>
+          </div>
+          {clip && (
+            <div className="clip-warn" role="status">
+              <span>{clip.message}</span>
+              <button className="btn-secondary" onClick={() => onChange({ ...shown, preamp: clip.suggested })}>Set preamp to {clip.suggested.toFixed(1)} dB</button>
+            </div>
+          )}
+          <div className="bands-scroll"><table className="bands">
+            <thead><tr><th>#</th><th>Type</th><th>Freq (Hz)</th><th>Gain (dB)</th><th>Q</th><th aria-label="Delete band" /></tr></thead>
+            <tbody>
+              {shown.bands.map((b, i) => {
+                if (isUnused(b) && !opened.includes(i) && selectedBand !== i) return null;
+                const nn = String(i + 1).padStart(2, '0');
+                return (
+                <tr
+                  key={i}
+                  className={selectedBand === i ? 'band-selected' : undefined}
+                  onClick={() => setSelectedBand(i)}
+                >
+                  <td className="mono">{nn}</td>
+                  <td>
+                    <select value={b.type} onChange={(e) => setBand(i, { type: e.target.value as FilterType })}>
+                      {cap.filterTypes.map((t) => <option key={t}>{t}</option>)}
+                    </select>
+                  </td>
+                  <td><NumField label="Frequency" unit="Hz" value={b.freq} step={cap.step.freq} range={cap.freq} resetKey={resetKey} onBlocked={setBlk(`${i}-freq`)} onCommit={(v) => setBand(i, { freq: v })} /></td>
+                  <td className="gain-cell">
+                    <NumField label="Gain" unit="dB" value={b.gain} step={cap.step.gain} range={cap.gain} resetKey={resetKey} onBlocked={setBlk(`${i}-gain`)} onCommit={(v) => setBand(i, { gain: v })} />
+                    {GAIN_STEPS.map((d) => (
+                      <button key={d} className="step" title={`${d > 0 ? 'Raise' : 'Lower'} band ${i + 1} gain by ${Math.abs(d)} dB`} onClick={() => nudgeGain(i, d)}>{d > 0 ? `+${d}` : d}</button>
+                    ))}
+                  </td>
+                  <td><NumField label="Q" unit="" value={b.q} step={cap.step.q} range={cap.q} resetKey={resetKey} onBlocked={setBlk(`${i}-q`)} onCommit={(v) => setBand(i, { q: v })} /></td>
+                  <td>
+                    <button
+                      type="button"
+                      className="band-delete"
+                      aria-label={`Delete band ${nn}`}
+                      title={`Delete band ${nn}`}
+                      onClick={(e) => { e.stopPropagation(); removeBand(i); }}
+                    >×</button>
+                  </td>
+                </tr>
+                );
+              })}
+            </tbody>
+          </table></div>
+          <div className="bands-foot bar">
+            <button type="button" className="btn-secondary" disabled={addSlot === null} onClick={addBandSlot}>+ Add band</button>
+            <span className="hint">{usedCount(shown)} of {cap.maxBands} bands used</span>
+          </div>
+          {children}
+        </section>
       </div>
-      {clip && (
-        <div className="clip-warn" role="status">
-          <span>{clip.message}</span>
-          <button className="btn-secondary" onClick={() => onChange({ ...shown, preamp: clip.suggested })}>Set preamp to {clip.suggested.toFixed(1)} dB</button>
-        </div>
-      )}
-      <div className="bands-scroll"><table className="bands">
-        <thead><tr><th>#</th><th>Type</th><th>Freq (Hz)</th><th>Gain (dB)</th><th>Q</th><th aria-label="Delete band" /></tr></thead>
-        <tbody>
-          {shown.bands.map((b, i) => {
-            if (isUnused(b) && selectedBand !== i) return null;
-            const nn = String(i + 1).padStart(2, '0');
-            return (
-            <tr
-              key={i}
-              className={selectedBand === i ? 'band-selected' : undefined}
-              onClick={() => setSelectedBand(i)}
-            >
-              <td className="mono">{nn}</td>
-              <td>
-                <select value={b.type} onChange={(e) => setBand(i, { type: e.target.value as FilterType })}>
-                  {cap.filterTypes.map((t) => <option key={t}>{t}</option>)}
-                </select>
-              </td>
-              <td><NumField label="Frequency" unit="Hz" value={b.freq} step={cap.step.freq} range={cap.freq} resetKey={resetKey} onBlocked={setBlk(`${i}-freq`)} onCommit={(v) => setBand(i, { freq: v })} /></td>
-              <td className="gain-cell">
-                <NumField label="Gain" unit="dB" value={b.gain} step={cap.step.gain} range={cap.gain} resetKey={resetKey} onBlocked={setBlk(`${i}-gain`)} onCommit={(v) => setBand(i, { gain: v })} />
-                {GAIN_STEPS.map((d) => (
-                  <button key={d} className="step" title={`${d > 0 ? 'Raise' : 'Lower'} band ${i + 1} gain by ${Math.abs(d)} dB`} onClick={() => nudgeGain(i, d)}>{d > 0 ? `+${d}` : d}</button>
-                ))}
-              </td>
-              <td><NumField label="Q" unit="" value={b.q} step={cap.step.q} range={cap.q} resetKey={resetKey} onBlocked={setBlk(`${i}-q`)} onCommit={(v) => setBand(i, { q: v })} /></td>
-              <td>
-                <button
-                  type="button"
-                  className="band-delete"
-                  aria-label={`Delete band ${nn}`}
-                  title={`Delete band ${nn}`}
-                  onClick={(e) => { e.stopPropagation(); removeBand(i); }}
-                >×</button>
-              </td>
-            </tr>
-            );
-          })}
-        </tbody>
-      </table></div>
-      <div className="bands-foot bar">
-        <button type="button" className="btn-secondary" disabled={firstUnused(shown) === null} onClick={addBandSlot}>+ Add band</button>
-        <span className="hint">{usedCount(shown)} of {cap.maxBands} bands used</span>
-      </div>
-      {children}
     </section>
   );
 }
