@@ -27,26 +27,26 @@ describe('graph scale', () => {
     expect(thumbPlotY(-15, 15)).toBeLessThan(48);
   });
 
-  it('draws an out-of-range import on a wider axis', () => {
+  it('draws the main graph on a fixed ±24 dB band-only axis', () => {
     const html = renderToStaticMarkup(<EqGraph profile={flat(-24)} />);
-    expect(html).toContain('scale ±30 dB');
-    expect(html).toContain('>-30<');
-    expect(html).toContain('>+30<');
-    expect(html).not.toContain('>-15<');
+    expect(html).toContain('scale ±24 dB');
+    expect(html).toContain('>-24<');
+    expect(html).toContain('>+24<');
+    expect(html).not.toContain('>-30<');
   });
 
-  it('leaves an in-range curve on the ±15 axis', () => {
+  it('uses the default ±24 dB view for an in-range curve', () => {
     const html = renderToStaticMarkup(<EqGraph profile={peak(6)} />);
-    expect(html).toContain('scale ±15 dB');
-    expect(html).toContain('>+15<');
-    expect(html).toContain('>-15<');
+    expect(html).toContain('scale ±24 dB');
+    expect(html).toContain('>+24<');
+    expect(html).toContain('>-24<');
   });
 
-  it('uses one scale for the curve and its comparison', () => {
+  it('uses one fixed scale for the curve and its comparison', () => {
     const html = renderToStaticMarkup(
       <EqGraph profile={peak(3)} compare={{ profile: flat(-24), label: 'Other slot' }} />,
     );
-    expect(html).toContain('scale ±30 dB');
+    expect(html).toContain('scale ±24 dB');
     expect(html).toContain('compared with Other slot');
   });
 

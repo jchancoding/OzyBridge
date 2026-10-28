@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, 
 import { parseSlotBackup, planBackupImport, serializeSlotBackup, type RestoreItem } from '../core/backup';
 import { exportAutoEq, parseAutoEq } from '../core/autoeq';
 import type { EqBand, EqProfile, FilterType, Range } from '../core/eq';
+import { profilesEqual } from '../core/eq';
 import { exportFiioXml, parseFiioXml } from '../core/fiioXml';
 import { clipCheck, fitProfile } from '../core/fit';
 import { decodeShareFragment, encodeShareFragment } from '../core/shareLink';
@@ -10,7 +11,18 @@ import { addPreset, deletePreset, mergePresets, parsePresets, renamePreset, seri
 import { commitNumber, inRange, parseDecimal, stepValue } from '../core/step';
 import type { DeviceAdapter } from '../devices/types';
 import { describeConnectError } from './connectMessages';
+import { addBandAt, deleteBand, firstUnused, isUnused, usedCount } from '../core/graphEdit';
+import {
+  createDraftHistory,
+  pushGestureAnchor,
+  pushNullableHistory,
+  redoNullableHistory,
+  resetDraftHistory,
+  undoNullableHistory,
+  type NullableHistoryState,
+} from '../core/history';
 import { EqGraph } from './EqGraph';
+import { GraphKeysLegend } from './GraphKeysLegend';
 import './motion.css';
 import { PresetLibrary, PRESET_DRAG_TYPE } from './PresetLibrary';
 
@@ -53,13 +65,14 @@ function NumField({ value, step, range, unit, label, resetKey, onCommit, onBlock
   const [text, setText] = useState(String(value));
   const [error, setError] = useState<string | null>(null);
   const lastReset = useRef(resetKey);
+  const focused = useRef(false);
   const tip = `${label}: ${range.min} to ${range.max} ${unit}, step ${step}`;
 
-  // Resync from the model on step buttons, arrow keys, undo or slot change.
+  // Resync from the model on step buttons, arrow keys, undo, slot change, or graph edits.
   useEffect(() => {
     const reset = lastReset.current !== resetKey;
     lastReset.current = resetKey;
-    if (reset || parseDecimal(text) !== value) {
+    if (reset || (!focused.current && parseDecimal(text) !== value)) {
       setText(String(value));
       setError(null);
       onBlocked(false);
@@ -101,7 +114,8 @@ function NumField({ value, step, range, unit, label, resetKey, onCommit, onBlock
         aria-label={tip}
         aria-invalid={error !== null}
         onChange={(e) => typing(e.target.value)}
-        onBlur={finish}
+        onFocus={() => { focused.current = true; }}
+        onBlur={() => { focused.current = false; finish(); }}
         onKeyDown={(e) => {
           if (e.key === 'Enter') return finish();
           if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
@@ -122,7 +136,10 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
   const [profiles, setProfiles] = useState<Record<number, EqProfile>>({});
   const [active, setActive] = useState<number | null>(null);
   const [selected, setSelected] = useState(userSlots[0]?.id ?? 0);
-  const [draft, setDraft] = useState<EqProfile | null>(null);
+  const [selectedBand, setSelectedBand] = useState<number | null>(null);
+  const [editHist, setEditHist] = useState<NullableHistoryState<EqProfile>>(() => createDraftHistory());
+  const dragHistSkip = useRef(false);
+  const eqViewRef = useRef<HTMLElement>(null);
   const [names, setNames] = useState<SlotNames>(() => parseSlotNames(localStorage.getItem(NAMES_KEY)));
   const [presets, setPresets] = useState<Preset[]>(() => parsePresets(localStorage.getItem(PRESETS_KEY)));
   const [notice, setNotice] = useState<Notice>(null);
@@ -143,7 +160,69 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
   const backupRef = useRef<HTMLInputElement>(null);
 
   const saved = profiles[selected];
+  const draft = editHist.present;
   const shown = draft ?? saved;
+
+  const clearEdit = useCallback(() => {
+    dragHistSkip.current = false;
+    setEditHist(resetDraftHistory());
+  }, []);
+
+  const applyEdit = useCallback(
+    (next: EqProfile, opts?: { coalesceKey?: string; skipPush?: boolean }) => {
+      if (!saved) return;
+      setEditHist((h) => pushNullableHistory(h, saved, next, { ...opts, equals: profilesEqual }));
+    },
+    [saved],
+  );
+
+  const beginDragEdit = useCallback(() => {
+    if (!saved || dragHistSkip.current) return;
+    dragHistSkip.current = true;
+    setEditHist((h) => pushGestureAnchor(h, saved));
+  }, [saved]);
+
+  const endDragEdit = useCallback(() => {
+    dragHistSkip.current = false;
+  }, []);
+
+  const undoEdit = useCallback(() => {
+    if (!saved) return;
+    setEditHist((h) => undoNullableHistory(h, saved, profilesEqual) ?? h);
+  }, [saved]);
+
+  const redoEdit = useCallback(() => {
+    if (!saved) return;
+    setEditHist((h) => redoNullableHistory(h, saved, profilesEqual) ?? h);
+  }, [saved]);
+
+  useEffect(() => {
+    clearEdit();
+  }, [selected, clearEdit]);
+
+  useEffect(() => {
+    const root = eqViewRef.current;
+    if (!root) return;
+    const onKey = (ev: KeyboardEvent) => {
+      if (!root.contains(document.activeElement)) return;
+      const t = ev.target as HTMLElement | null;
+      if (!t || t.closest('input, select, textarea')) return;
+      const mod = ev.metaKey || ev.ctrlKey;
+      if (mod && ev.key.toLowerCase() === 'z' && !ev.altKey) {
+        ev.preventDefault();
+        if (ev.shiftKey) redoEdit();
+        else undoEdit();
+      } else if (mod && ev.key.toLowerCase() === 'y') {
+        ev.preventDefault();
+        redoEdit();
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [undoEdit, redoEdit]);
+
+  const canUndo = editHist.past.length > 0;
+  const canRedo = editHist.future.length > 0;
   const clip = useMemo(() => (shown ? clipCheck(shown, cap) : null), [shown, cap]);
   const matched = useMemo(() => matchSlotNames(names[product] ?? [], profiles), [names, product, profiles]);
   const slotName = (id: number) => matched[id] ?? '';
@@ -162,6 +241,10 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
     download(`ozybridge-${product}-slots-${now.toISOString().slice(0, 10)}.json`, text, 'application/json');
   };
   const resetKey = `${selected}:${undoCount}`;
+  const graphCap = useMemo(
+    () => ({ freq: cap.freq, gain: cap.gain, q: cap.q, step: cap.step, maxBands: cap.maxBands }),
+    [cap],
+  );
   const anyBlocked = Object.values(blocked).some(Boolean);
   const setBlk = (k: string) => (b: boolean) => setBlocked((o) => (o[k] === b ? o : { ...o, [k]: b }));
   const eqOff = cap.eqOffSlotId !== null && active === cap.eqOffSlotId;
@@ -229,11 +312,15 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
     }
     const target = userSlots.find((s) => profiles[s.id] && isFlat(profiles[s.id] as EqProfile)) ?? userSlots[0];
     if (target) setSelected(target.id);
-    setDraft(null);
+    clearEdit();
     setPending({ name: d.name, profile: fit.profile, extra: fit.notes.length ? ` ${fit.notes.join(' ')}` : '', warn: fit.warnings.join(' ') });
     // Retries once the slot read has filled `profiles`. `shared` is cleared above so it runs once.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [readDone, profiles]);
+
+  useEffect(() => {
+    setSelectedBand(null);
+  }, [selected]);
 
   useEffect(() => {
     if (notice?.kind !== 'ok' && notice?.kind !== 'info') return;
@@ -249,7 +336,7 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
       if (!isUndo) setPending(null);
       setSweep((n) => n + 1);
       updateNames((n) => renameSlot(n, product, id, back, name));
-      if (id === selected) setDraft(null);
+      if (id === selected) clearEdit();
       if (isUndo) {
         setLastWrite(null);
         return `Slot ${Number(index(id))} restored and verified.`;
@@ -311,7 +398,7 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
       }
       updateNames((nm) => items.filter((i) => !i.changed).reduce((acc, i) => renameSlot(acc, product, i.id, i.profile, i.name), nm));
       setActive(await adapter.getActiveSlot());
-      setDraft(null);
+      clearEdit();
       setLastWrite(null);
       setSweep((k) => k + 1);
       const risky = items.filter((i) => i.warnings.length).map((i) => index(i.id));
@@ -327,7 +414,7 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
       return;
     }
     setSelected(id);
-    setDraft(null);
+    clearEdit();
     requestWrite(id, r.profile, r.notes.length ? ` ${r.notes.join(' ')}` : '', slotName(id) || r.name || '', r.warnings.join(' '));
   };
 
@@ -370,7 +457,7 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
     const fit = fitProfile(preset.profile, cap);
     if (!fit.ok) return setNotice({ kind: 'error', text: fit.errors.map((e) => e.message).join(' ') });
     setSelected(slot);
-    setDraft(null);
+    clearEdit();
     requestWrite(slot, fit.profile, fit.notes.length ? ` ${fit.notes.join(' ')}` : '', preset.name, fit.warnings.join(' '));
   };
 
@@ -420,9 +507,33 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
       return eqOff ? 'EQ is on.' : 'EQ is off (bypassed). The device plays without any EQ.';
     });
 
-  const setBand = (i: number, patch: Partial<EqBand>) => {
+  const setBand = (
+    i: number,
+    patch: Partial<EqBand>,
+    opts?: { coalesceKey?: string; skipPush?: boolean },
+  ) => {
     if (!shown) return;
-    setDraft({ ...shown, bands: shown.bands.map((b, j) => (j === i ? { ...b, ...patch } : b)) });
+    applyEdit({ ...shown, bands: shown.bands.map((b, j) => (j === i ? { ...b, ...patch } : b)) }, opts);
+  };
+
+  const addBandSlot = () => {
+    if (!shown) return;
+    const idx = firstUnused(shown);
+    if (idx === null) {
+      setNotice({ kind: 'error', text: `All ${cap.maxBands} bands are in use. Delete one first.` });
+      return;
+    }
+    setSelectedBand(idx);
+    applyEdit({
+      ...shown,
+      bands: shown.bands.map((b, i) => (i === idx ? { ...b, type: 'PK', enabled: true, gain: 0 } : b)),
+    });
+  };
+
+  const removeBand = (i: number) => {
+    if (!shown) return;
+    applyEdit(deleteBand(shown, i));
+    if (selectedBand === i) setSelectedBand(null);
   };
   const num = (v: string, fallback: number) => (v.trim() !== '' && Number.isFinite(Number(v)) ? Number(v) : fallback);
   const nudgeGain = (i: number, delta: number) => {
@@ -535,7 +646,7 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
               key={s.id}
               style={{ '--i': i } as CSSProperties}
               className={`slot${s.id === active ? ' slot-active' : ''}${s.id === selected ? ' slot-selected' : ''}${dragOver === s.id ? ' slot-drop' : ''}${s.id === cmpId ? ' slot-compare' : ''}`}
-              onClick={() => { setSelected(s.id); setCompareId((c) => (c === s.id ? null : c)); setDraft(null); setBlocked({}); }}
+              onClick={() => { setSelected(s.id); setCompareId((c) => (c === s.id ? null : c)); clearEdit(); setBlocked({}); }}
               onDragOver={(e) => { e.preventDefault(); setDragOver(s.id); }}
               onDragLeave={() => setDragOver((o) => (o === s.id ? null : o))}
               onDrop={onDrop(s.id)}
@@ -632,27 +743,63 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
       />
 
       {shown && (
-        <section className="eq-view">
+        <section className="eq-view" ref={eqViewRef}>
           <h2 className="section-title">Slot {sel} {slotName(selected)}</h2>
-          <EqGraph profile={shown} label={slotName(selected) || `Slot ${sel}`} compare={compare} sweep={sweep} />
+          <EqGraph
+            profile={shown}
+            label={slotName(selected) || `Slot ${sel}`}
+            compare={compare}
+            sweep={sweep}
+            hintId="eq-graph-keys"
+            onNotice={(text) => setNotice({ kind: 'error', text })}
+            editable={{
+              selected: selectedBand,
+              onSelect: setSelectedBand,
+              onEditStart: beginDragEdit,
+              onEditEnd: endDragEdit,
+              onChange: (i, patch, meta) => setBand(i, patch, meta),
+              onAdd: (freq, gain, meta) => {
+                const r = addBandAt(shown, freq, gain, graphCap);
+                if (!r) return null;
+                applyEdit(r.profile, meta);
+                return r.index;
+              },
+              onDelete: removeBand,
+              cap: graphCap,
+              filterTypes: cap.filterTypes,
+            }}
+          />
+          <GraphKeysLegend id="eq-graph-keys" filterTypes={cap.filterTypes} />
+          <p className="sr-only" aria-live="polite" aria-atomic="true">
+            {selectedBand !== null && shown.bands[selectedBand]
+              ? `Band ${String(selectedBand + 1).padStart(2, '0')}: ${shown.bands[selectedBand].freq} Hz, ${shown.bands[selectedBand].gain >= 0 ? '+' : ''}${shown.bands[selectedBand].gain.toFixed(1)} dB, Q ${shown.bands[selectedBand].q}`
+              : ''}
+          </p>
           <div className="preamp">
             <label className="label">Preamp</label>
-            <NumField label="Preamp" unit="dB" value={shown.preamp} step={cap.step.gain} range={cap.preamp} resetKey={resetKey} onBlocked={setBlk('preamp')} onCommit={(v) => setDraft({ ...shown, preamp: v })} />
+            <NumField label="Preamp" unit="dB" value={shown.preamp} step={cap.step.gain} range={cap.preamp} resetKey={resetKey} onBlocked={setBlk('preamp')} onCommit={(v) => applyEdit({ ...shown, preamp: v })} />
             <span className="unit">dB</span>
-            <span className="hint">Tip: click a field, then use the arrow keys (Shift = 10x).</span>
+            <span className="hint">Tip: drag along the curve to add a band, drag points to edit. See Graph shortcuts for more.</span>
           </div>
           {clip && (
             <div className="clip-warn" role="status">
               <span>{clip.message}</span>
-              <button className="btn-secondary" onClick={() => setDraft({ ...shown, preamp: clip.suggested })}>Set preamp to {clip.suggested.toFixed(1)} dB</button>
+              <button className="btn-secondary" onClick={() => applyEdit({ ...shown, preamp: clip.suggested })}>Set preamp to {clip.suggested.toFixed(1)} dB</button>
             </div>
           )}
           <div className="bands-scroll"><table className="bands">
-            <thead><tr><th>#</th><th>Type</th><th>Freq (Hz)</th><th>Gain (dB)</th><th>Q</th></tr></thead>
+            <thead><tr><th>#</th><th>Type</th><th>Freq (Hz)</th><th>Gain (dB)</th><th>Q</th><th aria-label="Delete band" /></tr></thead>
             <tbody>
-              {shown.bands.map((b, i) => (
-                <tr key={i}>
-                  <td className="mono">{String(i + 1).padStart(2, '0')}</td>
+              {shown.bands.map((b, i) => {
+                if (isUnused(b) && selectedBand !== i) return null;
+                const nn = String(i + 1).padStart(2, '0');
+                return (
+                <tr
+                  key={i}
+                  className={selectedBand === i ? 'band-selected' : undefined}
+                  onClick={() => setSelectedBand(i)}
+                >
+                  <td className="mono">{nn}</td>
                   <td>
                     <select value={b.type} onChange={(e) => setBand(i, { type: e.target.value as FilterType })}>
                       {cap.filterTypes.map((t) => <option key={t}>{t}</option>)}
@@ -666,14 +813,30 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
                     ))}
                   </td>
                   <td><NumField label="Q" unit="" value={b.q} step={cap.step.q} range={cap.q} resetKey={resetKey} onBlocked={setBlk(`${i}-q`)} onCommit={(v) => setBand(i, { q: v })} /></td>
+                  <td>
+                    <button
+                      type="button"
+                      className="band-delete"
+                      aria-label={`Delete band ${nn}`}
+                      title={`Delete band ${nn}`}
+                      onClick={(e) => { e.stopPropagation(); removeBand(i); }}
+                    >×</button>
+                  </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table></div>
+          <div className="bands-foot bar">
+            <button type="button" className="btn-secondary" disabled={firstUnused(shown) === null} onClick={addBandSlot}>+ Add band</button>
+            <span className="hint">{usedCount(shown)} of {cap.maxBands} bands used</span>
+          </div>
           <div className="bar">
             <button className="btn-primary" disabled={!draft || busy || anyBlocked} title="Send these edits to the device and verify them" onClick={writeDraft}>Save changes to slot {sel}</button>
             {anyBlocked && <span className="field-error">Fix the highlighted number fields before saving.</span>}
-            <button className="btn-secondary" disabled={!draft} title="Throw away unsaved edits and show what is currently on the device" onClick={() => { setDraft(null); setBlocked({}); setUndoCount((n) => n + 1); }}>Undo changes</button>
+            <button className="btn-secondary" disabled={!canUndo} onClick={undoEdit}>Undo</button>
+            <button className="btn-secondary" disabled={!canRedo} onClick={redoEdit}>Redo</button>
+            <button className="btn-secondary" disabled={!draft} title="Throw away unsaved edits and show what is currently on the device" onClick={() => { clearEdit(); setBlocked({}); setUndoCount((n) => n + 1); }}>Discard changes</button>
           </div>
         </section>
       )}
