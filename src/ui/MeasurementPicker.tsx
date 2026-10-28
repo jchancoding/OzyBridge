@@ -4,19 +4,88 @@ import type { SquigDb, SquigModel } from '../core/squiglink';
 import { loadDbs, loadMeasurement, loadModels } from './squiglink';
 
 export interface OverlayMeasurement {
+  id: string;
   label: string;
   measurement: Measurement;
 }
 
-const MAX_MATCHES = 50;
+const MAX_OVERLAYS = 3;
+const MAX_MATCHES = 40;
+
+type SquigCredit = { model: SquigModel; variant: string; db: SquigDb };
+
+type ModelGroup = {
+  brand: string;
+  name: string;
+  sources: { db: SquigDb; variants: SquigModel['variants'] }[];
+};
+
+function groupKey(brand: string, name: string): string {
+  return `${brand}\0${name}`.toLowerCase();
+}
+
+function modelMatches(group: ModelGroup, tokens: string[]): boolean {
+  const hay = `${group.brand} ${group.name}`.toLowerCase();
+  return tokens.every((t) => hay.includes(t));
+}
+
+async function loadCatalog(dbs: SquigDb[], onProgress: (done: number) => void): Promise<{ db: SquigDb; models: SquigModel[] }[]> {
+  const out: { db: SquigDb; models: SquigModel[] }[] = [];
+  let done = 0;
+  let next = 0;
+  async function worker() {
+    while (next < dbs.length) {
+      const i = next++;
+      const db = dbs[i]!;
+      try {
+        const models = await loadModels(db);
+        out.push({ db, models });
+      } catch {
+        /* skip reviewer */
+      }
+      done++;
+      onProgress(done);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(4, dbs.length) }, () => worker()));
+  return out;
+}
+
+function buildGroups(catalog: { db: SquigDb; models: SquigModel[] }[]): ModelGroup[] {
+  const map = new Map<string, ModelGroup>();
+  for (const { db, models } of catalog) {
+    for (const model of models) {
+      const key = groupKey(model.brand, model.name);
+      let g = map.get(key);
+      if (!g) {
+        g = { brand: model.brand, name: model.name, sources: [] };
+        map.set(key, g);
+      }
+      g.sources.push({ db, variants: model.variants });
+    }
+  }
+  return [...map.values()].sort((a, b) =>
+    `${a.brand} ${a.name}`.localeCompare(`${b.brand} ${b.name}`, undefined, { sensitivity: 'base' }),
+  );
+}
 
 export async function measurementFromFile(file: { name: string; text(): Promise<string> }): Promise<OverlayMeasurement> {
   const measurement = parseMeasurement(await file.text());
-  return { label: `${file.name} (your file)`, measurement };
+  return { id: `upload:${file.name}`, label: `${file.name} (your file)`, measurement };
 }
 
-export function MeasurementCredit({ model, variant, db, uploadName }: {
-  model?: SquigModel; variant?: string; db?: SquigDb; uploadName?: string;
+export function MeasurementCredit({
+  model,
+  variant,
+  db,
+  uploadName,
+  showHint = true,
+}: {
+  model?: SquigModel;
+  variant?: string;
+  db?: SquigDb;
+  uploadName?: string;
+  showHint?: boolean;
 }) {
   return (
     <div className="fr-credit">
@@ -28,72 +97,137 @@ export function MeasurementCredit({ model, variant, db, uploadName }: {
           <a href={db.baseUrl} target="_blank" rel="noopener">{db.reviewer}</a>
         </span>
       ) : null}
-      <p className="hint">Approximation: a different unit and rig than yours.</p>
+      {showHint && <p className="hint">Approximation: a different unit and rig than yours.</p>}
     </div>
   );
 }
 
-export function MeasurementPicker({ onChange }: { onChange: (m: OverlayMeasurement | null) => void }) {
-  const [open, setOpen] = useState(false);
-  const [dbs, setDbs] = useState<SquigDb[]>([]);
-  const [dbIndex, setDbIndex] = useState(0);
-  const [models, setModels] = useState<SquigModel[]>([]);
+export function MeasurementPicker({
+  items,
+  onChange,
+  onNotice,
+}: {
+  items: OverlayMeasurement[];
+  onChange: (next: OverlayMeasurement[]) => void;
+  onNotice: (text: string) => void;
+}) {
+  const [catalog, setCatalog] = useState<{ db: SquigDb; models: SquigModel[] }[]>([]);
+  const [loadTotal, setLoadTotal] = useState(0);
+  const [loadDone, setLoadDone] = useState(0);
   const [query, setQuery] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [reviewer, setReviewer] = useState('all');
   const [busy, setBusy] = useState(false);
-  const [credit, setCredit] = useState<{ model?: SquigModel; variant?: string; db?: SquigDb; uploadName?: string } | null>(null);
-
-  const db = dbs[dbIndex];
+  const [error, setError] = useState<string | null>(null);
+  const [credits, setCredits] = useState<Record<string, SquigCredit | { uploadName: string }>>({});
 
   useEffect(() => {
-    if (!open || dbs.length > 0) return;
     let live = true;
     loadDbs()
       .then((list) => {
         if (!live) return;
-        setDbs(list);
-        const first = list.findIndex((d) => d.type.toLowerCase() === 'iems');
-        setDbIndex(first >= 0 ? first : 0);
+        const iem = list.filter((d) => d.type.toLowerCase().includes('iem'));
+        setLoadTotal(iem.length);
+        setLoadDone(0);
+        return loadCatalog(iem, (done) => live && setLoadDone(done));
       })
+      .then((cat) => live && cat && setCatalog(cat))
       .catch(() => live && setError('Could not load the reviewer list.'));
     return () => { live = false; };
-  }, [open, dbs.length]);
+  }, []);
 
-  useEffect(() => {
-    if (!open || !db) return;
-    let live = true;
-    setModels([]);
-    loadModels(db)
-      .then((m) => live && setModels(m))
-      .catch(() => live && setError(`Could not load the model list from ${db.reviewer}.`));
-    return () => { live = false; };
-  }, [open, db]);
+  const groups = useMemo(() => buildGroups(catalog), [catalog]);
+  const tokens = useMemo(() => query.trim().toLowerCase().split(/\s+/).filter(Boolean), [query]);
 
-  const options = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const out: { model: SquigModel; variant: { label: string; file: string } }[] = [];
-    for (const model of models) {
-      for (const variant of model.variants) {
-        const text = `${model.brand} ${model.name} ${variant.label}`.toLowerCase();
-        if (q && !text.includes(q)) continue;
-        out.push({ model, variant });
-        if (out.length >= MAX_MATCHES) return out;
-      }
+  const matches = useMemo(() => {
+    if (tokens.length === 0) return [];
+    const out: ModelGroup[] = [];
+    for (const g of groups) {
+      if (!modelMatches(g, tokens)) continue;
+      out.push(g);
+      if (out.length >= MAX_MATCHES) break;
     }
     return out;
-  }, [models, query]);
+  }, [groups, tokens]);
 
-  async function pick(model: SquigModel, variant: { label: string; file: string }) {
-    if (!db) return;
+  const selectedGroup = useMemo(
+    () => (selectedKey ? groups.find((g) => groupKey(g.brand, g.name) === selectedKey) ?? null : null),
+    [groups, selectedKey],
+  );
+
+  const reviewerOptions = useMemo(() => {
+    if (!selectedGroup) return [];
+    const sorted = [...selectedGroup.sources].sort((a, b) =>
+      a.db.reviewer.localeCompare(b.db.reviewer, undefined, { sensitivity: 'base' }),
+    );
+    return sorted;
+  }, [selectedGroup]);
+
+  const measureRows = useMemo(() => {
+    if (!selectedGroup) return [] as { key: string; label: string; db: SquigDb; file: string; model: SquigModel; variant: string }[];
+    const sources = reviewer === 'all' ? reviewerOptions : reviewerOptions.filter((s) => s.db.baseUrl === reviewer);
+    const rows: { key: string; label: string; db: SquigDb; file: string; model: SquigModel; variant: string }[] = [];
+    for (const src of sources) {
+      const model: SquigModel = { brand: selectedGroup.brand, name: selectedGroup.name, variants: src.variants };
+      for (const v of src.variants) {
+        const variantLabel = v.label || 'default';
+        const label = reviewer === 'all' ? `${src.db.reviewer} — ${variantLabel}` : variantLabel;
+        rows.push({
+          key: `${src.db.baseUrl}|${v.file}`,
+          label,
+          db: src.db,
+          file: v.file,
+          model,
+          variant: v.label,
+        });
+      }
+    }
+    return rows;
+  }, [selectedGroup, reviewer, reviewerOptions]);
+
+  function isDuplicate(next: OverlayMeasurement): boolean {
+    return items.some((x) => x.id === next.id);
+  }
+
+  function addOverlay(entry: OverlayMeasurement, credit?: SquigCredit | { uploadName: string }) {
+    if (items.length >= MAX_OVERLAYS) {
+      onNotice('You can overlay 3 IEMs. Remove one first.');
+      return;
+    }
+    if (isDuplicate(entry)) {
+      onNotice('That measurement is already on the graph.');
+      return;
+    }
+    if (credit) setCredits((c) => ({ ...c, [entry.id]: credit }));
+    onChange([...items, entry]);
+  }
+
+  function removeAt(index: number) {
+    const removed = items[index];
+    onChange(items.filter((_, i) => i !== index));
+    if (removed) {
+      setCredits((c) => {
+        const next = { ...c };
+        delete next[removed.id];
+        return next;
+      });
+    }
+  }
+
+  async function pickRow(row: (typeof measureRows)[number]) {
     setBusy(true);
     setError(null);
     try {
-      const measurement = await loadMeasurement(db, variant.file);
-      const label = `${[model.brand, model.name, variant.label].filter(Boolean).join(' ')} measured by ${db.reviewer}`;
-      setCredit({ model, variant: variant.label, db });
-      onChange({ label, measurement });
+      const measurement = await loadMeasurement(row.db, row.file);
+      const squigLabel = `${[row.model.brand, row.model.name, row.variant].filter(Boolean).join(' ')} measured by ${row.db.reviewer}`;
+      const entry: OverlayMeasurement = {
+        id: `${row.db.baseUrl}|${row.file}`,
+        label: squigLabel,
+        measurement,
+      };
+      addOverlay(entry, { model: row.model, variant: row.variant, db: row.db });
     } catch {
-      setError(`Could not load this measurement from ${db.reviewer}.`);
+      setError(`Could not load this measurement from ${row.db.reviewer}.`);
     } finally {
       setBusy(false);
     }
@@ -104,58 +238,112 @@ export function MeasurementPicker({ onChange }: { onChange: (m: OverlayMeasureme
     setError(null);
     try {
       const m = await measurementFromFile(file);
-      setCredit({ uploadName: file.name });
-      onChange(m);
+      addOverlay(m, { uploadName: file.name });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not read this file.');
     }
   }
 
-  function clear() {
-    setCredit(null);
-    setError(null);
-    onChange(null);
-  }
-
-  if (!open) {
-    return (
-      <div className="fr-picker">
-        <button type="button" className="btn-secondary" onClick={() => setOpen(true)}>Compare with an IEM</button>
-        {credit && <MeasurementCredit {...credit} />}
-      </div>
-    );
-  }
+  const loading = loadTotal > 0 && loadDone < loadTotal;
+  const swatchVars = ['var(--oz-fr-1)', 'var(--oz-fr-2)', 'var(--oz-fr-3)'] as const;
 
   return (
     <div className="fr-picker">
-      <div className="fr-picker__row">
-        <label className="label" htmlFor="fr-reviewer">Reviewer</label>
-        <select id="fr-reviewer" value={dbIndex} onChange={(e) => setDbIndex(Number(e.target.value))}>
-          {dbs.map((d, i) => <option key={`${d.baseUrl}`} value={i}>{`${d.reviewer} (${d.type})`}</option>)}
-        </select>
-      </div>
-      <div className="fr-picker__row">
-        <label className="label" htmlFor="fr-search">Model</label>
-        <input id="fr-search" type="search" value={query} placeholder="Search models" onChange={(e) => setQuery(e.target.value)} />
-      </div>
-      <ul className="fr-picker__list" aria-label="Models" aria-busy={busy}>
-        {options.map(({ model, variant }) => (
-          <li key={`${model.brand}|${model.name}|${variant.file}`}>
-            <button type="button" className="btn-secondary" disabled={busy} onClick={() => pick(model, variant)}>
-              {[model.brand, model.name, variant.label].filter(Boolean).join(' ')}
-            </button>
-          </li>
-        ))}
-      </ul>
+      <input
+        id="fr-search"
+        className="fr-search"
+        type="search"
+        value={query}
+        placeholder="Search an IEM, for example Moondrop Aria"
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setSelectedKey(null);
+          setReviewer('all');
+        }}
+      />
+      {loading && (
+        <p className="hint" role="status">
+          Loading reviewer catalogs ({loadDone} of {loadTotal})…
+        </p>
+      )}
+      {tokens.length === 0 && !loading && <p className="hint">Type a model name</p>}
+      {tokens.length > 0 && (
+        <ul className="fr-picker__list" aria-label="Models">
+          {matches.map((g) => {
+            const key = groupKey(g.brand, g.name);
+            const sel = selectedKey === key;
+            return (
+              <li key={key}>
+                <button
+                  type="button"
+                  className={`btn-secondary${sel ? ' fr-model-selected' : ''}`}
+                  onClick={() => {
+                    setSelectedKey(key);
+                    setReviewer('all');
+                  }}
+                >
+                  {[g.brand, g.name].filter(Boolean).join(' ')}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {selectedGroup && (
+        <div className="fr-picker__row">
+          <label className="label" htmlFor="fr-reviewer-pick">Reviewer</label>
+          <select
+            id="fr-reviewer-pick"
+            value={reviewer}
+            onChange={(e) => setReviewer(e.target.value)}
+          >
+            <option value="all">All reviewers</option>
+            {reviewerOptions.map((s) => (
+              <option key={s.db.baseUrl} value={s.db.baseUrl}>{s.db.reviewer}</option>
+            ))}
+          </select>
+        </div>
+      )}
+      {selectedGroup && measureRows.length > 0 && (
+        <ul className="fr-picker__list" aria-label="Measurements" aria-busy={busy}>
+          {measureRows.map((row) => (
+            <li key={row.key}>
+              <button type="button" className="btn-secondary" disabled={busy} onClick={() => void pickRow(row)}>
+                {row.label}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {items.length > 0 && (
+        <ul className="fr-overlay-list" aria-label="Overlays on graph">
+          {items.map((item, i) => {
+            const credit = credits[item.id];
+            return (
+              <li key={item.id} className="fr-overlay-item">
+                <span className="fr-swatch" style={{ background: swatchVars[i] }} aria-hidden />
+                <span className="fr-overlay-label">{item.label}</span>
+                <button type="button" className="btn-secondary" onClick={() => removeAt(i)}>Remove</button>
+                {credit && 'uploadName' in credit ? (
+                  <MeasurementCredit uploadName={credit.uploadName} showHint={false} />
+                ) : credit ? (
+                  <MeasurementCredit model={credit.model} variant={credit.variant} db={credit.db} showHint={false} />
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      )}
       <div className="fr-picker__row">
         <label className="btn-secondary fr-upload">
           Upload measurement
           <input type="file" accept=".txt,.csv" hidden onChange={(e) => { void upload(e.target.files?.[0]); e.target.value = ''; }} />
         </label>
-        <button type="button" className="btn-secondary" onClick={clear}>Clear</button>
       </div>
+      {(items.length > 0) && (
+        <p className="hint">Approximation: a different unit and rig than yours.</p>
+      )}
       {error && <p className="hint fr-error" role="alert">{error}</p>}
-      {credit && <MeasurementCredit {...credit} />}
     </div>
   );
 }

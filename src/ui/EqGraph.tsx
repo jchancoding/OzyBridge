@@ -351,12 +351,14 @@ function stackHandleLabels(handles: HandleDraw[], geom: PlotGeom): Map<number, n
   return offsets;
 }
 
+const IEM_STROKES = ['var(--oz-fr-1)', 'var(--oz-fr-2)', 'var(--oz-fr-3)'] as const;
+
 export function EqGraph({
   profile,
   thumb = false,
   label = 'Current',
   compare,
-  measurement,
+  measurements,
   targets,
   sweep = 0,
   editable,
@@ -367,7 +369,7 @@ export function EqGraph({
   thumb?: boolean;
   label?: string;
   compare?: { profile: EqProfile; label: string };
-  measurement?: { label: string; measurement: Measurement };
+  measurements?: { label: string; measurement: Measurement }[];
   targets?: { id: string; name: string; measurement: Measurement }[];
   sweep?: number;
   editable?: {
@@ -429,19 +431,28 @@ export function EqGraph({
   }, [thumb]);
 
   const overlay = useMemo(() => {
-    if (thumb || (!measurement && !(targets && targets.length))) return null;
+    const iems = measurements ?? [];
+    if (thumb || (iems.length === 0 && !(targets && targets.length))) return null;
     const f = logFrequencies(OVERLAY_N);
-    const eq = measurement ? equalizedResponse(measurement.measurement, profile, f) : null;
+    const iemCurves = iems.map((m, index) => {
+      const eq = equalizedResponse(m.measurement, profile, f);
+      return {
+        label: m.label,
+        original: eq.original,
+        equalized: index === 0 ? eq.equalized : null,
+        stroke: IEM_STROKES[index] ?? IEM_STROKES[0],
+      };
+    });
     return {
       f,
-      original: eq?.original ?? null,
-      equalized: eq?.equalized ?? null,
+      iems: iemCurves,
       targets: (targets ?? []).map((t) => ({ id: t.id, name: t.name, db: targetCurve(t.measurement, f) })),
     };
-  }, [thumb, measurement, targets, profile]);
+  }, [thumb, measurements, targets, profile]);
   const overlayDb = useMemo(() => {
     if (!overlay) return [] as number[];
-    return [...(overlay.original ?? []), ...(overlay.equalized ?? []), ...overlay.targets.flatMap((t) => t.db)].filter(Number.isFinite);
+    const fromIems = overlay.iems.flatMap((m) => [...m.original, ...(m.equalized ?? [])]);
+    return [...fromIems, ...overlay.targets.flatMap((t) => t.db)].filter(Number.isFinite);
   }, [overlay]);
 
   const autoRange = useMemo(() => {
@@ -457,7 +468,9 @@ export function EqGraph({
   );
   const plotView = editable ? view : staticView;
 
-  const overlayKey = overlay ? `${measurement?.label ?? ''}|${(targets ?? []).map((t) => t.id).join(',')}` : '';
+  const overlayKey = overlay
+    ? `${(measurements ?? []).map((m) => m.label).join('|')}|${(targets ?? []).map((t) => t.id).join(',')}`
+    : '';
   const widenedFor = useRef('');
   useEffect(() => {
     // Widen once per overlay selection, so later zooming by the user is not undone on every edit.
@@ -494,8 +507,14 @@ export function EqGraph({
       ticks: thumb ? graphDbTicks(plotRange) : ticksFor(plotView),
       overlayPaths: overlay
         ? {
-            original: overlay.original ? toPath(overlay.f, overlay.original, (f) => freqX(f, g), (d) => mainPlotY(d, viewForY, g)) : null,
-            equalized: overlay.equalized ? toPath(overlay.f, overlay.equalized, (f) => freqX(f, g), (d) => mainPlotY(d, viewForY, g)) : null,
+            iems: overlay.iems.map((m) => ({
+              label: m.label,
+              original: toPath(overlay.f, m.original, (f) => freqX(f, g), (d) => mainPlotY(d, viewForY, g)),
+              equalized: m.equalized
+                ? toPath(overlay.f, m.equalized, (f) => freqX(f, g), (d) => mainPlotY(d, viewForY, g))
+                : null,
+              stroke: m.stroke,
+            })),
             targets: overlay.targets.map((t) => ({ id: t.id, name: t.name, d: toPath(overlay.f, t.db, (f) => freqX(f, g), (d) => mainPlotY(d, viewForY, g)) })),
           }
         : null,
@@ -976,7 +995,7 @@ export function EqGraph({
       viewBox={`0 0 ${geom.W} ${geom.H}`}
       role="img"
       tabIndex={editable ? 0 : undefined}
-      aria-label={`EQ response, peak ${bandPeak.toFixed(1)} dB, scale ${scaleText}${compare ? `, compared with ${compare.label}` : ''}${measurement ? `, measurement ${measurement.label}` : ''}${targets && targets.length ? `, targets ${targets.map((t) => t.name).join(', ')}` : ''}${ariaExtra}`}
+      aria-label={`EQ response, peak ${bandPeak.toFixed(1)} dB, scale ${scaleText}${compare ? `, compared with ${compare.label}` : ''}${measurements && measurements.length ? `, measurements ${measurements.map((m) => m.label).join(', ')}` : ''}${targets && targets.length ? `, targets ${targets.map((t) => t.name).join(', ')}` : ''}${ariaExtra}`}
       aria-describedby={hintId}
       onPointerDown={editable ? onPointerDown : undefined}
       onPointerMove={editable ? onPointerMove : undefined}
@@ -1031,8 +1050,12 @@ export function EqGraph({
         {showClip && clipY > geom.T && (
           <rect x={geom.L} y={geom.T} width={geom.PW} height={clipY - geom.T} className="graph-clip" pointerEvents="none" />
         )}
-        {overlayPaths?.original && <path d={overlayPaths.original} className="graph-fr-original" pointerEvents="none" />}
-        {overlayPaths?.equalized && <path d={overlayPaths.equalized} className="graph-fr-eq" pointerEvents="none" />}
+        {overlayPaths?.iems.map((m, i) => (
+          <g key={i}>
+            <path d={m.original} className="graph-fr-iem" style={{ stroke: m.stroke }} pointerEvents="none" />
+            {m.equalized && <path d={m.equalized} className="graph-fr-eq" pointerEvents="none" />}
+          </g>
+        ))}
         {overlayPaths?.targets.map((t, i) => (
           <path key={t.id} d={t.d} className="graph-target" strokeDasharray={TARGET_DASHES[i % TARGET_DASHES.length]} pointerEvents="none" />
         ))}
@@ -1098,16 +1121,23 @@ export function EqGraph({
         );
       })}
       {(compare || overlayPaths) && (() => {
-        const entries: { name: string; cls: string; dash?: string }[] = [{ name: label, cls: 'graph-curve' }];
-        if (overlayPaths?.original) entries.push({ name: 'Original', cls: 'graph-fr-original' }, { name: 'Equalized', cls: 'graph-fr-eq' });
+        const truncate = (name: string) => (name.length > 18 ? `${name.slice(0, 17)}…` : name);
+        const entries: { name: string; cls: string; dash?: string; stroke?: string }[] = [{ name: label, cls: 'graph-curve' }];
+        overlayPaths?.iems.forEach((m) => {
+          entries.push({ name: truncate(m.label), cls: 'graph-fr-iem', stroke: m.stroke });
+          if (m.equalized) {
+            const first = measurements?.[0]?.label ?? m.label;
+            entries.push({ name: `EQ on ${truncate(first)}`, cls: 'graph-fr-eq' });
+          }
+        });
         overlayPaths?.targets.forEach((t, i) => entries.push({ name: t.name, cls: 'graph-target', dash: TARGET_DASHES[i % TARGET_DASHES.length] }));
         if (compare) entries.push({ name: compare.label, cls: 'graph-curve-2' });
         return (
           <g className="graph-legend" pointerEvents="none">
             {entries.map((e, i) => (
               <g key={i} transform={`translate(${geom.W - geom.R - 150} ${geom.T + 16 + i * 18})`}>
-                <line x1={0} x2={22} y1={0} y2={0} className={e.cls} strokeDasharray={e.dash} />
-                <text x={28} y={4} className="graph-legend-text">{e.name.length > 18 ? `${e.name.slice(0, 17)}…` : e.name}</text>
+                <line x1={0} x2={22} y1={0} y2={0} className={e.cls} stroke={e.stroke} strokeDasharray={e.dash} />
+                <text x={28} y={4} className="graph-legend-text">{truncate(e.name)}</text>
               </g>
             ))}
           </g>

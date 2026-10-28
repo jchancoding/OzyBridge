@@ -13,6 +13,7 @@ describe('target toggles', () => {
     vi.stubGlobal('fetch', fetchMock);
     const html = renderToStaticMarkup(<TargetToggles onChange={() => {}} />);
     expect(html).toContain('TARGETS');
+    expect(html).toContain('target-toggle');
     expect(html.match(/aria-pressed="false"/g)?.length).toBe(TARGETS.length);
     expect(fetchMock).not.toHaveBeenCalled();
   });

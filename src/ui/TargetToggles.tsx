@@ -54,7 +54,7 @@ export function TargetToggles({ onChange }: { onChange: (list: TargetOverlay[]) 
     <div className="overlays__row">
       <span className="label">TARGETS</span>
       {TARGETS.map((t) => (
-        <button key={t.id} type="button" className="btn-secondary" aria-pressed={!!on[t.id]} onClick={() => void toggle(t)}>
+        <button key={t.id} type="button" className="btn-secondary target-toggle" aria-pressed={!!on[t.id]} onClick={() => void toggle(t)}>
           {t.name}
         </button>
       ))}

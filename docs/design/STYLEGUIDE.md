@@ -37,6 +37,9 @@ Tokens below are the source of truth. They live in `src/ui/tokens.css` once scaf
 | `--oz-drop-wash` | `#FFF0DC` | Drop target background |
 | `--oz-curve-2` | `#B34DFF` | Secondary curve (target or comparison) |
 | `--oz-fr-original` | `#6B7785` | Overlaid IEM measurement, unequalized |
+| `--oz-fr-1` | `#6B7785` | First IEM overlay curve |
+| `--oz-fr-2` | `#456882` | Second IEM overlay curve |
+| `--oz-fr-3` | `#8F6B3E` | Third IEM overlay curve |
 | `--oz-target` | `#7A3FB8` | Target curve overlays (dashed) |
 | `--oz-on-accent` / `--oz-on-danger` / `--oz-on-ok` | `#FFFFFF` | Label on the matching fill |
 | `--oz-danger-wash` | `#FFF1F4` | Error notice, invalid field |
@@ -72,6 +75,9 @@ Set with `<html data-theme="dark">`. Tokens not listed (spacing, motion, `--oz-b
 | `--oz-drop-wash` | `#3A2610` |
 | `--oz-curve-2` | `#C77DFF` |
 | `--oz-fr-original` | `#8C98A6` |
+| `--oz-fr-1` | `#8C98A6` |
+| `--oz-fr-2` | `#6E9DB8` |
+| `--oz-fr-3` | `#B8895A` |
 | `--oz-target` | `#D9A6FF` |
 | `--oz-on-accent` / `--oz-on-danger` / `--oz-on-ok` | `#0E131A` |
 | `--oz-danger-wash` | `#3A1620` |

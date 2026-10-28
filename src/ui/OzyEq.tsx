@@ -197,6 +197,11 @@ export function OzyEq() {
             {(notice.kind === 'error' || notice.kind === 'warn') && <button className="btn-secondary" onClick={() => setNotice(null)}>Dismiss</button>}
           </div>
         )}
+        <section className="eq-panel">
+          <header className="eq-panel__head">
+            <span className="eq-panel__title">File</span>
+          </header>
+          <div className="eq-panel__rule" aria-hidden />
         <div className="actions">
         <section className="action-group">
           <label className="label" htmlFor="ozyeq-device">Device limits</label>
@@ -228,6 +233,7 @@ export function OzyEq() {
           }} />
         </section>
         </div>
+        </section>
         <EqEditor
           heading="EQ"
           profile={current}
@@ -248,7 +254,12 @@ export function OzyEq() {
             <button className="btn-secondary" onClick={flatten}>Reset to flat</button>
           </div>
         </EqEditor>
-        <div className="actions">
+        <section className="eq-panel">
+          <header className="eq-panel__head">
+            <span className="eq-panel__title">Export</span>
+          </header>
+          <div className="eq-panel__rule" aria-hidden />
+          <div className="actions">
         <section className="action-group">
           <h3 className="label">Export</h3>
           <div className="bar">
@@ -258,6 +269,7 @@ export function OzyEq() {
           </div>
         </section>
         </div>
+        </section>
         <Footer />
       </main>
       <Mascot />
