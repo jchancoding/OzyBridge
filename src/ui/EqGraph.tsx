@@ -457,15 +457,13 @@ export function EqGraph({
   );
   const plotView = editable ? view : staticView;
 
-  const hasOverlay = !!overlay;
-  const widened = useRef(false);
+  const overlayKey = overlay ? `${measurement?.label ?? ''}|${(targets ?? []).map((t) => t.id).join(',')}` : '';
+  const widenedFor = useRef('');
   useEffect(() => {
-    if (!hasOverlay) {
-      widened.current = false;
-      return;
-    }
-    if (widened.current || !editable || overlayDb.length === 0) return;
-    widened.current = true;
+    // Widen once per overlay selection, so later zooming by the user is not undone on every edit.
+    if (widenedFor.current === overlayKey) return;
+    widenedFor.current = overlayKey;
+    if (!overlayKey || !editable || overlayDb.length === 0) return;
     const v = viewRef.current;
     const lo = Math.min(...overlayDb);
     const hi = Math.max(...overlayDb);
@@ -473,7 +471,7 @@ export function EqGraph({
     const needed = Math.max(Math.abs(hi - v.center), Math.abs(lo - v.center)) * 1.05;
     const halfSpan = HALF_SPAN_NOTCHES.find((n) => n >= needed) ?? VIEW_HALF_SPAN_MAX;
     if (halfSpan > v.halfSpan) setView(clampView({ center: v.center, halfSpan }));
-  }, [hasOverlay, overlayDb, editable]);
+  }, [overlayKey, overlayDb, editable]);
 
   const drawn = useMemo(() => {
     const n = thumb ? 60 : 260;

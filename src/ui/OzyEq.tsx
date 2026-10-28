@@ -84,7 +84,7 @@ export function OzyEq() {
   const importText = (text: string, fileName: string) => {
     const r = parseAny(text, fileName, limits);
     if (!r.ok) return setNotice({ kind: 'error', text: r.errors.join(' ') });
-    const n = r.name || fileName.replace(/\.[^.]*$/, '') || DEFAULT_NAME;
+    const n = r.name || (fileName === 'paste.txt' ? fileBase : fileName.replace(/\.[^.]*$/, '')) || DEFAULT_NAME;
     setName(n);
     loadFitted(r.profile, n, r.notes, r.warnings);
   };
@@ -183,7 +183,7 @@ export function OzyEq() {
 
   return (
     <>
-      <main className="app screen">
+      <main className="app screen ozyeq">
         <header className="landing-bar">
           <div className="landing-bar__brand">
             <Stripes />
@@ -197,6 +197,7 @@ export function OzyEq() {
             {(notice.kind === 'error' || notice.kind === 'warn') && <button className="btn-secondary" onClick={() => setNotice(null)}>Dismiss</button>}
           </div>
         )}
+        <div className="actions">
         <section className="action-group">
           <label className="label" htmlFor="ozyeq-device">Device limits</label>
           <select id="ozyeq-device" value={device} onChange={(e) => onDevice(e.target.value)}>
@@ -226,6 +227,7 @@ export function OzyEq() {
             if (f) void f.text().then((t) => importText(t, f.name));
           }} />
         </section>
+        </div>
         <EqEditor
           heading="EQ"
           profile={current}
@@ -246,6 +248,7 @@ export function OzyEq() {
             <button className="btn-secondary" onClick={flatten}>Reset to flat</button>
           </div>
         </EqEditor>
+        <div className="actions">
         <section className="action-group">
           <h3 className="label">Export</h3>
           <div className="bar">
@@ -254,6 +257,7 @@ export function OzyEq() {
             <button className="btn-secondary" title="Copies a link that contains this EQ. Nothing is uploaded." onClick={() => void copy(`${location.origin}${location.pathname}#${encodeShareFragment({ name: fileBase, profile: current })}`, 'Share link copied.')}>Copy share link</button>
           </div>
         </section>
+        </div>
         <Footer />
       </main>
       <Mascot />

@@ -475,6 +475,18 @@ img, svg, canvas { max-width: 100%; }
 }
 
 /* Phase 9c: OzyEQ and landing */
+a.btn-primary, a.btn-secondary { display: inline-flex; align-items: center; text-decoration: none; }
+.landing-bar > .btn-primary, .landing-bar > .btn-secondary { align-self: stretch; }
+.ozyeq > .actions, .ozyeq > .eq-view { width: 100%; box-sizing: border-box; }
+.ozyeq .actions select, .ozyeq .actions input[type='text'] {
+  width: 100%;
+  box-sizing: border-box;
+  font: 1rem var(--oz-font-ui);
+  padding: var(--oz-2);
+  background: var(--oz-surface);
+  color: var(--oz-text);
+  border: 1px solid var(--oz-line-strong);
+}
 .ozyeq-paste {
   width: 100%;
   box-sizing: border-box;
@@ -486,6 +498,11 @@ img, svg, canvas { max-width: 100%; }
 }
 @media (max-width: 600px) {
   .bands .step { display: none; }
+  .bands { min-width: 0; }
+  .bands th, .bands td { padding: var(--oz-1); }
+  .bands th:first-child, .bands td:first-child { display: none; }
+  .bands input.num { width: 4.25em; padding: var(--oz-1); }
+  .bands th { font-size: 0.75rem; letter-spacing: 0.04em; }
   .bar > .btn-primary, .bar > .btn-secondary { width: 100%; }
   .landing-bar { flex-wrap: wrap; }
   .landing-bar > .btn-primary, .landing-bar > .btn-secondary { width: 100%; text-align: center; }
