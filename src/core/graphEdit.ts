@@ -141,6 +141,16 @@ export function firstUnused(profile: EqProfile): number | null {
   return i >= 0 ? i : null;
 }
 
+export function nextAddIndex(profile: EqProfile, reserved: readonly number[]): number | null {
+  const skip = new Set(reserved);
+  for (let i = 0; i < profile.bands.length; i++) {
+    if (skip.has(i)) continue;
+    const band = profile.bands[i];
+    if (band && isUnused(band)) return i;
+  }
+  return null;
+}
+
 export function gainAtCursor(cursorDb: number, profile: EqProfile, freq: number): number {
   const other = profileResponseDb(profile, [freq], 48000, false)[0] as number;
   const ref: EqBand = { type: 'PK', freq, gain: 6, q: 1.41, enabled: true };
