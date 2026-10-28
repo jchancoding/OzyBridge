@@ -560,6 +560,13 @@ export function Workspace({ adapter }: { adapter: DeviceAdapter }) {
           onRedo={redoEdit}
           onNotice={(text) => setNotice({ kind: 'error', text })}
           onBlockedChange={setAnyBlocked}
+          exportBar={shown && (
+            <div className="bar">
+              <button className="btn-secondary" onClick={() => download(`${fileBase}.txt`, exportAutoEq(shown, { omitFlat: true }), 'text/plain')}>Download .txt (Squiglink / AutoEQ)</button>
+              <button className="btn-secondary" onClick={() => download(`${fileBase}.xml`, exportFiioXml(shown, { model: product, name: slotName(selected) || undefined }), 'application/xml')}>Download .xml (FiiO)</button>
+              <button className="btn-secondary" title="Copies a link that contains this EQ. Nothing is uploaded." onClick={() => void copyShare()}>Copy share link</button>
+            </div>
+          )}
         >
           <div className="bar">
             <button className="btn-primary" disabled={!draft || busy || anyBlocked} title="Send these edits to the device and verify them" onClick={writeDraft}>Save changes to slot {sel}</button>

@@ -1,11 +1,18 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { MeasurementCredit, MeasurementPicker, measurementFromFile } from './MeasurementPicker';
+import { MeasurementCredit, MeasurementPicker, measurementFromFile, modelMatches } from './MeasurementPicker';
 import { loadMeasurement } from './squiglink';
 
 afterEach(() => vi.unstubAllGlobals());
 
 const rew = Array.from({ length: 40 }, (_, i) => `${(20 * Math.pow(1000, i / 39)).toFixed(2)}\t${70 + (i % 3)}`).join('\n');
+
+describe('model search', () => {
+  it('matches a model name and skips a token buried inside another word', () => {
+    expect(modelMatches({ brand: 'Moondrop', name: 'Aria' }, ['aria'])).toBe(true);
+    expect(modelMatches({ brand: 'FIIL', name: 'Key Pro EQ Variation' }, ['aria'])).toBe(false);
+  });
+});
 
 describe('measurement picker', () => {
   it('fetches nothing on static render', () => {

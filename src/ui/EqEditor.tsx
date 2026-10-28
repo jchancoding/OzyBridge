@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { EqBand, EqLimits, EqProfile, FilterType } from '../core/eq';
 import { clipCheck } from '../core/fit';
-import { addBandAt, deleteBand, isUnused, usedCount } from '../core/graphEdit';
+import { addBandAt, deleteBand, isUnused, nextAddIndex, usedCount } from '../core/graphEdit';
+import { GRAPH_PALETTES } from './graphPalettes';
 import { AutoEqPanel } from './AutoEqPanel';
 import { EqGraph } from './EqGraph';
 import { GraphKeysLegend } from './GraphKeysLegend';
@@ -12,15 +13,6 @@ import { TargetToggles, type TargetOverlay } from './TargetToggles';
 const GAIN_STEPS = [-1, -0.5, 0.5, 1];
 
 type ChangeOpts = { coalesceKey?: string; skipPush?: boolean };
-
-function nextAddIndex(profile: EqProfile, reserved: readonly number[]): number | null {
-  const skip = new Set(reserved);
-  for (let i = 0; i < profile.bands.length; i++) {
-    const b = profile.bands[i];
-    if (b && isUnused(b) && !skip.has(i)) return i;
-  }
-  return null;
-}
 
 function EqPanelHeader({ index, title }: { index?: string; title: string }) {
   return (
@@ -36,7 +28,7 @@ function EqPanelHeader({ index, title }: { index?: string; title: string }) {
 
 export function EqEditor({
   heading, profile: shown, limits: cap, resetKey, label, compare, sweep,
-  onChange, onEditStart, onEditEnd, onUndo, onRedo, onNotice, onBlockedChange, children,
+  onChange, onEditStart, onEditEnd, onUndo, onRedo, onNotice, onBlockedChange, exportBar, children,
 }: {
   heading: ReactNode;
   profile: EqProfile;
@@ -52,11 +44,13 @@ export function EqEditor({
   onRedo: () => void;
   onNotice: (text: string) => void;
   onBlockedChange: (blocked: boolean) => void;
+  exportBar?: ReactNode;
   children?: ReactNode;
 }) {
   const [selectedBand, setSelectedBand] = useState<number | null>(null);
   const [opened, setOpened] = useState<number[]>([]);
   const [blocked, setBlocked] = useState<Record<string, boolean>>({});
+  const [iemColors, setIemColors] = useState<readonly string[]>(() => GRAPH_PALETTES.dark[0]?.iem ?? ['#EB8D00', '#00EB5E', '#DA47FF']);
   const [overlays, setOverlays] = useState<OverlayMeasurement[]>([]);
   const [targets, setTargets] = useState<TargetOverlay[]>([]);
   const eqViewRef = useRef<HTMLElement>(null);
@@ -145,6 +139,7 @@ export function EqEditor({
         sweep={sweep}
         hintId="eq-graph-keys"
         onNotice={onNotice}
+        onColors={setIemColors}
         editable={{
           selected: selectedBand,
           onSelect: setSelectedBand,
@@ -152,9 +147,16 @@ export function EqEditor({
           onEditEnd,
           onChange: (i, patch, meta) => setBand(i, patch, meta),
           onAdd: (freq, gain, meta) => {
-            const r = addBandAt(shown, freq, gain, graphCap);
+            // Opened 0 dB slots are still "unused". Mask them so a graph add does not overwrite one.
+            const masked = {
+              ...shown,
+              bands: shown.bands.map((b, i) => (opened.includes(i) && isUnused(b) ? { ...b, gain: 1 } : b)),
+            };
+            const r = addBandAt(masked, freq, gain, graphCap);
             if (!r) return null;
-            onChange(r.profile, meta);
+            const bands = r.profile.bands.map((b, i) => (i === r.index ? b : shown.bands[i]!));
+            onChange({ ...r.profile, bands }, meta);
+            setOpened((o) => (o.includes(r.index) ? o : [...o, r.index]));
             return r.index;
           },
           onDelete: removeBand,
@@ -162,12 +164,14 @@ export function EqEditor({
           filterTypes: cap.filterTypes,
         }}
       />
+      <div className="target-row">
+        <TargetToggles onChange={setTargets} />
+      </div>
       <GraphKeysLegend id="eq-graph-keys" filterTypes={cap.filterTypes} />
       <div className="eq-panels">
         <section className="eq-panel">
           <EqPanelHeader index="01" title="Listen" />
-          <MeasurementPicker items={overlays} onChange={setOverlays} onNotice={onNotice} />
-          <TargetToggles onChange={setTargets} />
+          <MeasurementPicker items={overlays} iemColors={iemColors} onChange={setOverlays} onNotice={onNotice} />
         </section>
         <section className="eq-panel">
           <EqPanelHeader index="02" title="Match" />
@@ -181,6 +185,7 @@ export function EqEditor({
             }}
             onNotice={onNotice}
           />
+          {exportBar}
         </section>
         <section className="eq-panel eq-panel--bands">
           <EqPanelHeader index="03" title="Bands" />

@@ -42,6 +42,7 @@ import {
 import { bandResponseDb, logFrequencies, profileResponseDb } from '../core/response';
 import { stepValue } from '../core/step';
 import { equalizedResponse, type Measurement } from '../core/measurement';
+import { GRAPH_PALETTES, useGraphTheme, type GraphPalette } from './graphPalettes';
 import { targetCurve } from '../core/targets';
 
 const TARGET_DASHES = ['2 4', '8 4', '12 4 2 4', '1 3'];
@@ -351,8 +352,6 @@ function stackHandleLabels(handles: HandleDraw[], geom: PlotGeom): Map<number, n
   return offsets;
 }
 
-const IEM_STROKES = ['var(--oz-fr-1)', 'var(--oz-fr-2)', 'var(--oz-fr-3)'] as const;
-
 export function EqGraph({
   profile,
   thumb = false,
@@ -364,6 +363,7 @@ export function EqGraph({
   editable,
   hintId,
   onNotice,
+  onColors,
 }: {
   profile: EqProfile;
   thumb?: boolean;
@@ -385,8 +385,17 @@ export function EqGraph({
   };
   hintId?: string;
   onNotice?: (text: string) => void;
+  onColors?: (iem: GraphPalette['iem']) => void;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
+  const theme = useGraphTheme();
+  const [paletteIx, setPaletteIx] = useState(0);
+  const palette = GRAPH_PALETTES[theme][paletteIx % GRAPH_PALETTES[theme].length] ?? GRAPH_PALETTES.dark[0]!;
+  const onColorsRef = useRef(onColors);
+  onColorsRef.current = onColors;
+  useEffect(() => {
+    onColorsRef.current?.(palette.iem);
+  }, [palette]);
   const plotClipId = useId();
   const svgRef = useRef<SVGSVGElement>(null);
   const coarse = useMemo(() => isCoarsePointer(), []);
@@ -440,15 +449,20 @@ export function EqGraph({
         label: m.label,
         original: eq.original,
         equalized: index === 0 ? eq.equalized : null,
-        stroke: IEM_STROKES[index] ?? IEM_STROKES[0],
+        stroke: palette.iem[index] ?? palette.iem[0],
       };
     });
     return {
       f,
       iems: iemCurves,
-      targets: (targets ?? []).map((t) => ({ id: t.id, name: t.name, db: targetCurve(t.measurement, f) })),
+      targets: (targets ?? []).map((t, i) => ({
+        id: t.id,
+        name: t.name,
+        db: targetCurve(t.measurement, f),
+        stroke: palette.target[i] ?? palette.target[0],
+      })),
     };
-  }, [thumb, measurements, targets, profile]);
+  }, [thumb, measurements, targets, profile, palette]);
   const overlayDb = useMemo(() => {
     if (!overlay) return [] as number[];
     const fromIems = overlay.iems.flatMap((m) => [...m.original, ...(m.equalized ?? [])]);
@@ -515,7 +529,7 @@ export function EqGraph({
                 : null,
               stroke: m.stroke,
             })),
-            targets: overlay.targets.map((t) => ({ id: t.id, name: t.name, d: toPath(overlay.f, t.db, (f) => freqX(f, g), (d) => mainPlotY(d, viewForY, g)) })),
+            targets: overlay.targets.map((t) => ({ id: t.id, name: t.name, d: toPath(overlay.f, t.db, (f) => freqX(f, g), (d) => mainPlotY(d, viewForY, g)), stroke: t.stroke })),
           }
         : null,
       cmpPath: cmp ? toPath(cmp.f, cmp.db, (f) => freqX(f, g), (d) => mainPlotY(d, viewForY, g)) : null,
@@ -1053,13 +1067,13 @@ export function EqGraph({
         {overlayPaths?.iems.map((m, i) => (
           <g key={i}>
             <path d={m.original} className="graph-fr-iem" style={{ stroke: m.stroke }} pointerEvents="none" />
-            {m.equalized && <path d={m.equalized} className="graph-fr-eq" pointerEvents="none" />}
+            {m.equalized && <path d={m.equalized} className="graph-fr-eq" style={{ stroke: palette.equalized }} pointerEvents="none" />}
           </g>
         ))}
         {overlayPaths?.targets.map((t, i) => (
-          <path key={t.id} d={t.d} className="graph-target" strokeDasharray={TARGET_DASHES[i % TARGET_DASHES.length]} pointerEvents="none" />
+          <path key={t.id} d={t.d} className="graph-target" style={{ stroke: t.stroke }} strokeDasharray={TARGET_DASHES[i % TARGET_DASHES.length]} pointerEvents="none" />
         ))}
-        {cmpPath && <path d={cmpPath} className="graph-curve-2" pointerEvents="none" />}
+        {cmpPath && <path d={cmpPath} className="graph-curve-2" style={{ stroke: palette.compare }} pointerEvents="none" />}
         {bandPaths.map((bp) => (
           <path
             key={bp.index}
@@ -1068,7 +1082,7 @@ export function EqGraph({
             pointerEvents="none"
           />
         ))}
-        <path d={path} className="graph-curve" pointerEvents="none" />
+        <path d={path} className="graph-curve" style={{ stroke: palette.eq }} pointerEvents="none" />
         {sweep > 0 && (
           <svg key={sweep} x={geom.L} y={geom.T} width={geom.PW} height={geom.PH} overflow="hidden" aria-hidden>
             <g className="graph-sweep" style={{ '--sweep-w': `${geom.PW}px` } as CSSProperties}>
@@ -1122,21 +1136,21 @@ export function EqGraph({
       })}
       {(compare || overlayPaths) && (() => {
         const truncate = (name: string) => (name.length > 18 ? `${name.slice(0, 17)}…` : name);
-        const entries: { name: string; cls: string; dash?: string; stroke?: string }[] = [{ name: label, cls: 'graph-curve' }];
+        const entries: { name: string; cls: string; dash?: string; stroke?: string }[] = [{ name: label, cls: 'graph-curve', stroke: palette.eq }];
         overlayPaths?.iems.forEach((m) => {
           entries.push({ name: truncate(m.label), cls: 'graph-fr-iem', stroke: m.stroke });
           if (m.equalized) {
             const first = measurements?.[0]?.label ?? m.label;
-            entries.push({ name: `EQ on ${truncate(first)}`, cls: 'graph-fr-eq' });
+            entries.push({ name: `EQ on ${truncate(first)}`, cls: 'graph-fr-eq', stroke: palette.equalized });
           }
         });
-        overlayPaths?.targets.forEach((t, i) => entries.push({ name: t.name, cls: 'graph-target', dash: TARGET_DASHES[i % TARGET_DASHES.length] }));
-        if (compare) entries.push({ name: compare.label, cls: 'graph-curve-2' });
+        overlayPaths?.targets.forEach((t, i) => entries.push({ name: t.name, cls: 'graph-target', dash: TARGET_DASHES[i % TARGET_DASHES.length], stroke: t.stroke }));
+        if (compare) entries.push({ name: compare.label, cls: 'graph-curve-2', stroke: palette.compare });
         return (
           <g className="graph-legend" pointerEvents="none">
             {entries.map((e, i) => (
               <g key={i} transform={`translate(${geom.W - geom.R - 150} ${geom.T + 16 + i * 18})`}>
-                <line x1={0} x2={22} y1={0} y2={0} className={e.cls} stroke={e.stroke} strokeDasharray={e.dash} />
+                <line x1={0} x2={22} y1={0} y2={0} className={e.cls} style={{ stroke: e.stroke }} strokeDasharray={e.dash} />
                 <text x={28} y={4} className="graph-legend-text">{truncate(e.name)}</text>
               </g>
             ))}
@@ -1149,8 +1163,13 @@ export function EqGraph({
   );
 
   return (
-    <div ref={wrapRef} className="graph-wrap">
-      {svgBody}
+    <div className="graph-block">
+      <div ref={wrapRef} className="graph-wrap">
+        {svgBody}
+      </div>
+      <div className="graph-toolbar">
+        <button type="button" className="btn-secondary graph-remix" onClick={() => setPaletteIx((n) => n + 1)}>Remix colors</button>
+      </div>
     </div>
   );
 }

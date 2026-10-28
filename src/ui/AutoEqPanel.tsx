@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { EqLimits, EqProfile } from '../core/eq';
 import { fitAutoEq } from '../core/autoEqFit';
 import { TARGETS } from '../core/targets';
@@ -7,6 +7,55 @@ import type { OverlayMeasurement } from './MeasurementPicker';
 
 function enabledBandCount(profile: EqProfile): number {
   return profile.bands.filter((b) => b.enabled && b.gain !== 0).length;
+}
+
+function WrapPick({
+  label,
+  value,
+  placeholder,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  placeholder: string;
+  options: { id: string; label: string }[];
+  onChange: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const current = options.find((o) => o.id === value);
+  return (
+    <div className="wrap-pick">
+      <span className="label">{label}</span>
+      <button
+        type="button"
+        className="wrap-pick__value"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        {current?.label ?? placeholder}
+      </button>
+      {open && (
+        <ul className="wrap-pick__list" role="listbox" aria-label={label}>
+          <li>
+            <button type="button" className="wrap-pick__option" onClick={() => { onChange(''); setOpen(false); }}>{placeholder}</button>
+          </li>
+          {options.map((o) => (
+            <li key={o.id}>
+              <button
+                type="button"
+                className="wrap-pick__option"
+                aria-selected={o.id === value}
+                onClick={() => { onChange(o.id); setOpen(false); }}
+              >
+                {o.label}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }
 
 export function AutoEqPanel({
@@ -36,9 +85,13 @@ export function AutoEqPanel({
     ];
   }, [measurements, fromId]);
 
+  useEffect(() => {
+    if (fromId && !measurements.some((m) => m.id === fromId)) setFromId('');
+    if (toId && !measurements.some((m) => m.id === toId) && !TARGETS.some((t) => t.id === toId)) setToId('');
+  }, [measurements, fromId, toId]);
+
   const samePair = fromId !== '' && toId !== '' && fromId === toId;
-  const missingEnds = !fromId || !toId;
-  const canFit = !busy && !missingEnds && !samePair && measurements.length > 0;
+  const canFit = !busy && !!fromItem && (!!toOverlay || !!toTarget) && !samePair;
 
   async function runFit(bandCount: number) {
     if (!fromItem || (!toOverlay && !toTarget)) return;
@@ -77,43 +130,35 @@ export function AutoEqPanel({
   return (
     <div className="auto-eq">
       <p className="hint">Match an IEM to another IEM or a target. This replaces the bands. Undo brings them back.</p>
-      <div className="auto-eq__row">
-        <label className="label" htmlFor="auto-eq-from">From</label>
-        <select
-          id="auto-eq-from"
-          value={fromId}
-          onChange={(e) => {
-            setFromId(e.target.value);
-            if (e.target.value === toId) setToId('');
-          }}
-        >
-          <option value="">Select…</option>
-          {measurements.map((m) => (
-            <option key={m.id} value={m.id}>{m.label}</option>
-          ))}
-        </select>
-      </div>
-      <div className="auto-eq__row">
-        <label className="label" htmlFor="auto-eq-to">To</label>
-        <select id="auto-eq-to" value={toId} onChange={(e) => setToId(e.target.value)}>
-          <option value="">Select…</option>
-          {toOptions.map((o) => (
-            <option key={o.id} value={o.id}>{o.label}</option>
-          ))}
-        </select>
-      </div>
+      <WrapPick
+        label="From"
+        value={fromId}
+        placeholder="Select…"
+        options={measurements.map((m) => ({ id: m.id, label: m.label }))}
+        onChange={(id) => {
+          setFromId(id);
+          if (id === toId) setToId('');
+        }}
+      />
+      <WrapPick
+        label="To"
+        value={toId}
+        placeholder="Select…"
+        options={toOptions.map((o) => ({ id: o.id, label: o.label }))}
+        onChange={setToId}
+      />
       <div className="auto-eq__actions bar">
         <button type="button" className="btn-secondary" disabled={!canFit || limits.maxBands < 5} onClick={() => void runFit(5)}>
-          5 bands
+          5 band AutoEQ
         </button>
         <button type="button" className="btn-secondary" disabled={!canFit || limits.maxBands < 10} onClick={() => void runFit(10)}>
-          10 bands
+          10 band AutoEQ
         </button>
       </div>
       {limits.maxBands < 10 && (
         <p className="hint">This device has {limits.maxBands} bands.</p>
       )}
-      {(missingEnds || samePair) && fromId && (
+      {samePair && (
         <p className="hint">Pick a different From and To.</p>
       )}
     </div>

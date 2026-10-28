@@ -24,9 +24,17 @@ function groupKey(brand: string, name: string): string {
   return `${brand}\0${name}`.toLowerCase();
 }
 
-function modelMatches(group: ModelGroup, tokens: string[]): boolean {
+export function modelMatches(group: { brand: string; name: string }, tokens: string[]): boolean {
   const hay = `${group.brand} ${group.name}`.toLowerCase();
-  return tokens.every((t) => hay.includes(t));
+  return tokens.every((token) => {
+    let at = hay.indexOf(token);
+    while (at >= 0) {
+      const before = at === 0 ? '' : hay[at - 1] ?? '';
+      if (!/[a-z0-9]/i.test(before)) return true;
+      at = hay.indexOf(token, at + 1);
+    }
+    return false;
+  });
 }
 
 async function loadCatalog(dbs: SquigDb[], onProgress: (done: number) => void): Promise<{ db: SquigDb; models: SquigModel[] }[]> {
@@ -104,10 +112,12 @@ export function MeasurementCredit({
 
 export function MeasurementPicker({
   items,
+  iemColors,
   onChange,
   onNotice,
 }: {
   items: OverlayMeasurement[];
+  iemColors?: readonly string[];
   onChange: (next: OverlayMeasurement[]) => void;
   onNotice: (text: string) => void;
 }) {
@@ -245,7 +255,7 @@ export function MeasurementPicker({
   }
 
   const loading = loadTotal > 0 && loadDone < loadTotal;
-  const swatchVars = ['var(--oz-fr-1)', 'var(--oz-fr-2)', 'var(--oz-fr-3)'] as const;
+  const swatches = iemColors ?? ['var(--oz-fr-1)', 'var(--oz-fr-2)', 'var(--oz-fr-3)'];
 
   return (
     <div className="fr-picker">
@@ -255,11 +265,7 @@ export function MeasurementPicker({
         type="search"
         value={query}
         placeholder="Search an IEM, for example Moondrop Aria"
-        onChange={(e) => {
-          setQuery(e.target.value);
-          setSelectedKey(null);
-          setReviewer('all');
-        }}
+        onChange={(e) => setQuery(e.target.value)}
       />
       {loading && (
         <p className="hint" role="status">
@@ -321,14 +327,20 @@ export function MeasurementPicker({
             const credit = credits[item.id];
             return (
               <li key={item.id} className="fr-overlay-item">
-                <span className="fr-swatch" style={{ background: swatchVars[i] }} aria-hidden />
-                <span className="fr-overlay-label">{item.label}</span>
-                <button type="button" className="btn-secondary" onClick={() => removeAt(i)}>Remove</button>
-                {credit && 'uploadName' in credit ? (
-                  <MeasurementCredit uploadName={credit.uploadName} showHint={false} />
-                ) : credit ? (
-                  <MeasurementCredit model={credit.model} variant={credit.variant} db={credit.db} showHint={false} />
-                ) : null}
+                <span className="fr-swatch" style={{ background: swatches[i] ?? swatches[0] }} aria-hidden />
+                <div className="fr-overlay-copy">
+                  <span className="fr-overlay-label">{item.label}</span>
+                  {credit && 'uploadName' in credit ? (
+                    <MeasurementCredit uploadName={credit.uploadName} showHint={false} />
+                  ) : credit ? (
+                    <MeasurementCredit model={credit.model} variant={credit.variant} db={credit.db} showHint={false} />
+                  ) : null}
+                </div>
+                <button type="button" className="fr-trash" aria-label={`Remove ${item.label}`} onClick={() => removeAt(i)}>
+                  <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                    <path d="M4 7h16M9 7V5h6v2M7 7l1 12h8l1-12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" />
+                  </svg>
+                </button>
               </li>
             );
           })}

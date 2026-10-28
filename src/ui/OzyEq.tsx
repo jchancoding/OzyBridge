@@ -181,6 +181,14 @@ export function OzyEq() {
     }
   };
 
+  const exportButtons = (
+    <div className="bar">
+      <button className="btn-primary" onClick={() => download(`${fileBase}.txt`, exportAutoEq(current, { omitFlat: true }), 'text/plain')}>Download .txt (Squiglink / AutoEQ)</button>
+      <button className="btn-secondary" onClick={() => void copy(exportAutoEq(current, { omitFlat: true }), 'EQ text copied.')}>Copy as text</button>
+      <button className="btn-secondary" title="Copies a link that contains this EQ. Nothing is uploaded." onClick={() => void copy(`${location.origin}${location.pathname}#${encodeShareFragment({ name: fileBase, profile: current })}`, 'Share link copied.')}>Copy share link</button>
+    </div>
+  );
+
   return (
     <>
       <main className="app screen ozyeq">
@@ -247,6 +255,7 @@ export function OzyEq() {
           onRedo={redo}
           onNotice={(text) => setNotice({ kind: 'error', text })}
           onBlockedChange={() => {}}
+          exportBar={exportButtons}
         >
           <div className="bar">
             <button className="btn-secondary" disabled={!canUndo} onClick={undo}>Undo</button>
@@ -259,16 +268,7 @@ export function OzyEq() {
             <span className="eq-panel__title">Export</span>
           </header>
           <div className="eq-panel__rule" aria-hidden />
-          <div className="actions">
-        <section className="action-group">
-          <h3 className="label">Export</h3>
-          <div className="bar">
-            <button className="btn-primary" onClick={() => download(`${fileBase}.txt`, exportAutoEq(current, { omitFlat: true }), 'text/plain')}>Download .txt (Squiglink / AutoEQ)</button>
-            <button className="btn-secondary" onClick={() => void copy(exportAutoEq(current, { omitFlat: true }), 'EQ text copied.')}>Copy as text</button>
-            <button className="btn-secondary" title="Copies a link that contains this EQ. Nothing is uploaded." onClick={() => void copy(`${location.origin}${location.pathname}#${encodeShareFragment({ name: fileBase, profile: current })}`, 'Share link copied.')}>Copy share link</button>
-          </div>
-        </section>
-        </div>
+          {exportButtons}
         </section>
         <Footer />
       </main>
