@@ -28,6 +28,8 @@
   --oz-target: #7A3FB8;
   --oz-accent-fill: #0077B6;
   --oz-on-accent: #FFFFFF;
+  --oz-secondary-fill: #6E32B0;
+  --oz-on-secondary: #FFFFFF;
   --oz-on-danger: #FFFFFF;
   --oz-on-ok: #FFFFFF;
   --oz-danger-wash: #FFF1F4;
@@ -86,6 +88,8 @@
   --oz-target: #D9A6FF;
   --oz-accent-fill: #22C3F5;
   --oz-on-accent: #0E131A;
+  --oz-secondary-fill: #C77DFF;
+  --oz-on-secondary: #0E131A;
   --oz-on-danger: #0E131A;
   --oz-on-ok: #0E131A;
   --oz-danger-wash: #3A1620;

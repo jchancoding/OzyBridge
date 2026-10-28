@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { EqProfile } from '../core/eq';
-import { EqGraph, graphDbRange, graphDbTicks, mainPlotY, thumbPlotY } from './EqGraph';
+import { EqGraph, graphDbRange, graphDbTicks, mainPlotY, plotGeom, thumbPlotY } from './EqGraph';
 
 const flat = (preamp: number): EqProfile => ({ preamp, bands: [] });
 const peak = (gain: number): EqProfile => ({
@@ -48,6 +48,16 @@ describe('graph scale', () => {
     );
     expect(html).toContain('scale ±24 dB');
     expect(html).toContain('compared with Other slot');
+  });
+
+  it('gives a phone-width graph a tighter frame and hides the axis gutter', () => {
+    const phone = plotGeom(390, 320);
+    const desk = plotGeom(1000, 420);
+    expect(phone.compact).toBe(true);
+    expect(desk.compact).toBe(false);
+    expect(phone.L).toBeLessThan(desk.L);
+    expect(phone.T).toBeLessThan(desk.T);
+    expect(phone.PW).toBeGreaterThan(390 - desk.L - desk.R);
   });
 
   it('scales a thumbnail instead of pinning it to the edge', () => {
