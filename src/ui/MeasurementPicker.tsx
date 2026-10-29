@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { parseMeasurement, type Measurement } from '../core/measurement';
-import type { SquigDb, SquigModel } from '../core/squiglink';
+import { commonSpelling, modelIdentity, normalizeSearch, type SquigDb, type SquigModel } from '../core/squiglink';
 import { loadDbs, loadMeasurement, loadModels } from './squiglink';
 
 export interface OverlayMeasurement {
@@ -15,13 +15,15 @@ const MAX_MATCHES = 40;
 type SquigCredit = { model: SquigModel; variant: string; db: SquigDb };
 
 type ModelGroup = {
-  brand: string;
-  name: string;
-  sources: { db: SquigDb; variants: SquigModel['variants'] }[];
+  key: string;
+  display: string;
+  hay: string;
+  sources: { db: SquigDb; model: SquigModel; detail: string }[];
 };
 
-function groupKey(brand: string, name: string): string {
-  return `${brand}\0${name}`.toLowerCase();
+export function variantLabel(detail: string, label: string): string {
+  if (!detail || label.toLowerCase().includes(detail.toLowerCase())) return label;
+  return [detail, label].filter(Boolean).join(' ');
 }
 
 export function modelMatches(group: { brand: string; name: string }, tokens: string[]): boolean {
@@ -59,22 +61,28 @@ async function loadCatalog(dbs: SquigDb[], onProgress: (done: number) => void): 
   return out;
 }
 
-function buildGroups(catalog: { db: SquigDb; models: SquigModel[] }[]): ModelGroup[] {
-  const map = new Map<string, ModelGroup>();
+export function buildGroups(catalog: { db: SquigDb; models: SquigModel[] }[]): ModelGroup[] {
+  const map = new Map<string, { spellings: string[]; sources: ModelGroup['sources'] }>();
   for (const { db, models } of catalog) {
     for (const model of models) {
-      const key = groupKey(model.brand, model.name);
-      let g = map.get(key);
+      const id = modelIdentity(model.brand, model.name);
+      let g = map.get(id.key);
       if (!g) {
-        g = { brand: model.brand, name: model.name, sources: [] };
-        map.set(key, g);
+        g = { spellings: [], sources: [] };
+        map.set(id.key, g);
       }
-      g.sources.push({ db, variants: model.variants });
+      g.spellings.push(id.spelling);
+      g.sources.push({ db, model, detail: id.detail });
     }
   }
-  return [...map.values()].sort((a, b) =>
-    `${a.brand} ${a.name}`.localeCompare(`${b.brand} ${b.name}`, undefined, { sensitivity: 'base' }),
-  );
+  return [...map.entries()]
+    .map(([key, g]) => ({
+      key,
+      display: commonSpelling(g.spellings),
+      hay: [key, ...new Set(g.spellings.map(normalizeSearch))].join(' | '),
+      sources: g.sources,
+    }))
+    .sort((a, b) => a.display.localeCompare(b.display, undefined, { sensitivity: 'base' }));
 }
 
 export async function measurementFromFile(file: { name: string; text(): Promise<string> }): Promise<OverlayMeasurement> {
@@ -148,13 +156,13 @@ export function MeasurementPicker({
   }, []);
 
   const groups = useMemo(() => buildGroups(catalog), [catalog]);
-  const tokens = useMemo(() => query.trim().toLowerCase().split(/\s+/).filter(Boolean), [query]);
+  const tokens = useMemo(() => normalizeSearch(query).split(' ').filter(Boolean), [query]);
 
   const matches = useMemo(() => {
     if (tokens.length === 0) return [];
     const out: ModelGroup[] = [];
     for (const g of groups) {
-      if (!modelMatches(g, tokens)) continue;
+      if (!modelMatches({ brand: '', name: g.hay }, tokens)) continue;
       out.push(g);
       if (out.length >= MAX_MATCHES) break;
     }
@@ -162,39 +170,45 @@ export function MeasurementPicker({
   }, [groups, tokens]);
 
   const selectedGroup = useMemo(
-    () => (selectedKey ? groups.find((g) => groupKey(g.brand, g.name) === selectedKey) ?? null : null),
+    () => (selectedKey ? groups.find((g) => g.key === selectedKey) ?? null : null),
     [groups, selectedKey],
   );
 
-  const reviewerOptions = useMemo(() => {
+  const sortedSources = useMemo(() => {
     if (!selectedGroup) return [];
-    const sorted = [...selectedGroup.sources].sort((a, b) =>
+    return [...selectedGroup.sources].sort((a, b) =>
       a.db.reviewer.localeCompare(b.db.reviewer, undefined, { sensitivity: 'base' }),
     );
-    return sorted;
   }, [selectedGroup]);
+
+  const reviewerOptions = useMemo(
+    () => [...new Map(sortedSources.map((s) => [s.db.baseUrl, s.db])).values()],
+    [sortedSources],
+  );
 
   const measureRows = useMemo(() => {
     if (!selectedGroup) return [] as { key: string; label: string; db: SquigDb; file: string; model: SquigModel; variant: string }[];
-    const sources = reviewer === 'all' ? reviewerOptions : reviewerOptions.filter((s) => s.db.baseUrl === reviewer);
+    const sources = reviewer === 'all' ? sortedSources : sortedSources.filter((s) => s.db.baseUrl === reviewer);
     const rows: { key: string; label: string; db: SquigDb; file: string; model: SquigModel; variant: string }[] = [];
+    const seen = new Set<string>();
     for (const src of sources) {
-      const model: SquigModel = { brand: selectedGroup.brand, name: selectedGroup.name, variants: src.variants };
-      for (const v of src.variants) {
-        const variantLabel = v.label || 'default';
-        const label = reviewer === 'all' ? `${src.db.reviewer} — ${variantLabel}` : variantLabel;
+      for (const v of src.model.variants) {
+        const key = `${src.db.baseUrl}|${v.file}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const shown = variantLabel(src.detail, v.label) || 'default';
         rows.push({
-          key: `${src.db.baseUrl}|${v.file}`,
-          label,
+          key,
+          label: reviewer === 'all' ? `${src.db.reviewer} — ${shown}` : shown,
           db: src.db,
           file: v.file,
-          model,
+          model: src.model,
           variant: v.label,
         });
       }
     }
     return rows;
-  }, [selectedGroup, reviewer, reviewerOptions]);
+  }, [selectedGroup, reviewer, sortedSources]);
 
   function isDuplicate(next: OverlayMeasurement): boolean {
     return items.some((x) => x.id === next.id);
@@ -283,7 +297,7 @@ export function MeasurementPicker({
       {tokens.length > 0 && (
         <ul className="fr-picker__list" aria-label="Models">
           {matches.map((g) => {
-            const key = groupKey(g.brand, g.name);
+            const key = g.key;
             const sel = selectedKey === key;
             return (
               <li key={key}>
@@ -296,7 +310,7 @@ export function MeasurementPicker({
                     setReviewer('all');
                   }}
                 >
-                  {[g.brand, g.name].filter(Boolean).join(' ')}
+                  {g.display}
                 </button>
               </li>
             );
@@ -312,8 +326,8 @@ export function MeasurementPicker({
             onChange={(e) => setReviewer(e.target.value)}
           >
             <option value="all">All reviewers</option>
-            {reviewerOptions.map((s) => (
-              <option key={s.db.baseUrl} value={s.db.baseUrl}>{s.db.reviewer}</option>
+            {reviewerOptions.map((db) => (
+              <option key={db.baseUrl} value={db.baseUrl}>{db.reviewer}</option>
             ))}
           </select>
         </div>
