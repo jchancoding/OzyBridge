@@ -61,6 +61,17 @@ async function loadCatalog(dbs: SquigDb[], onProgress: (done: number) => void): 
   return out;
 }
 
+export function reviewerNames(sources: ModelGroup['sources']): string[] {
+  return [...new Set(sources.map((s) => s.db.reviewer))].sort((a, b) =>
+    a.localeCompare(b, undefined, { sensitivity: 'base' }),
+  );
+}
+
+export function reviewerSummary(names: string[]): string {
+  if (names.length <= 3) return names.join(', ');
+  return `${names.length} reviewers: ${names.slice(0, 2).join(', ')} +${names.length - 2}`;
+}
+
 export function buildGroups(catalog: { db: SquigDb; models: SquigModel[] }[]): ModelGroup[] {
   const map = new Map<string, { spellings: string[]; sources: ModelGroup['sources'] }>();
   for (const { db, models } of catalog) {
@@ -164,9 +175,9 @@ export function MeasurementPicker({
     for (const g of groups) {
       if (!modelMatches({ brand: '', name: g.hay }, tokens)) continue;
       out.push(g);
-      if (out.length >= MAX_MATCHES) break;
     }
-    return out;
+    const count = (g: ModelGroup) => reviewerNames(g.sources).length;
+    return out.sort((a, b) => count(b) - count(a)).slice(0, MAX_MATCHES);
   }, [groups, tokens]);
 
   const selectedGroup = useMemo(
@@ -310,7 +321,8 @@ export function MeasurementPicker({
                     setReviewer('all');
                   }}
                 >
-                  {g.display}
+                  <span className="fr-model-name">{g.display}</span>
+                  <span className="fr-model-sub">{reviewerSummary(reviewerNames(g.sources))}</span>
                 </button>
               </li>
             );
