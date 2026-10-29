@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { connectFiio } from './devices/fiio/adapter';
 import { FIIO_MODELS, findFiioModel, pickFiioInterface } from './devices/fiio/models';
+import { connectKtmicro } from './devices/ktmicro/adapter';
+import { KTMICRO_MODELS, findKtmicroModel, pickKtmicroInterface } from './devices/ktmicro/models';
 import { connectWalkplay } from './devices/walkplay/adapter';
 import { WALKPLAY_MODELS, findWalkplayModel, pickWalkplayInterface } from './devices/walkplay/models';
 import { matchFamily } from './devices/registry';
@@ -43,6 +45,13 @@ export function App() {
     await attach(a, name);
   };
 
+  const attachKtmicroDevice = async (device: Parameters<typeof connectKtmicro>[0]) => {
+    const a = await connectKtmicro(device);
+    const name =
+      a.info.productName || (findKtmicroModel(a.info.vendorId, a.info.productId)?.name ?? 'your device');
+    await attach(a, name);
+  };
+
   const attachWalkplayDevice = async (device: Parameters<typeof connectWalkplay>[0]) => {
     const a = await connectWalkplay(device);
     const name = findWalkplayModel(a.info.vendorId, a.info.productId, a.info.productName)?.name ?? 'your device';
@@ -70,6 +79,8 @@ export function App() {
       const granted = await requestConnectDevices();
       const walkplay = pickWalkplayInterface(granted);
       if (walkplay) return void (await attachWalkplayDevice(walkplay));
+      const ktmicro = pickKtmicroInterface(granted);
+      if (ktmicro) return void (await attachKtmicroDevice(ktmicro));
       const device = pickFiioInterface(granted);
       if (!device) {
         return setError('No supported device was selected. Pick the control entry for your DAC.');
@@ -84,20 +95,21 @@ export function App() {
   const verifiedFiio = FIIO_MODELS.filter((m) => !m.untested);
   const verifiedWalk = WALKPLAY_MODELS.filter((m) => !m.untested);
   const untestedWritable = FIIO_MODELS.filter((m) => m.untested).sort(byName);
-  const untestedReadOnly = WALKPLAY_MODELS.filter((m) => m.untested).sort(byName);
+  const untestedReadOnly = [...WALKPLAY_MODELS, ...KTMICRO_MODELS].filter((m) => m.untested).sort(byName);
 
   if (adapter) {
     const family = matchFamily(adapter.info.vendorId, adapter.info.productId, adapter.info.productName);
     const walkplay = family === 'walkplay' ? findWalkplayModel(adapter.info.vendorId, adapter.info.productId, adapter.info.productName) : undefined;
-    const model = family === 'fiio' ? findFiioModel(adapter.info.vendorId, adapter.info.productId) : walkplay;
+    const ktmicro = family === 'ktmicro' ? findKtmicroModel(adapter.info.vendorId, adapter.info.productId) : undefined;
+    const model = family === 'fiio' ? findFiioModel(adapter.info.vendorId, adapter.info.productId) : walkplay ?? ktmicro;
     return (
       <>
         <main className="app screen">
           {model?.untested && (
             <aside className="untested-banner">
               <p>
-                {walkplay
-                  ? 'This WalkPlay device is read-only in OzyBridge until writes are confirmed on hardware.'
+                {walkplay || ktmicro
+                  ? 'This device is read-only in OzyBridge until writes are confirmed on hardware.'
                   : 'This model uses settings from devicePEQ captures. Writes are verified, but nobody has confirmed it with OzyBridge yet.'}
               </p>
               <a href="?verify">Test this device</a>
