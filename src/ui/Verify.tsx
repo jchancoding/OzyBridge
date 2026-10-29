@@ -13,6 +13,8 @@ import { connectFiio } from '../devices/fiio/adapter';
 import { FIIO_VENDOR_ID, findFiioModel, pickFiioInterface } from '../devices/fiio/models';
 import { probeFiio } from '../devices/fiio/probe';
 import { matchFamily } from '../devices/registry';
+import { connectKtmicro } from '../devices/ktmicro/adapter';
+import { KTMICRO_VENDOR_ID, findKtmicroModel, pickKtmicroInterface } from '../devices/ktmicro/models';
 import { connectWalkplay } from '../devices/walkplay/adapter';
 import { findWalkplayModel, pickWalkplayInterface } from '../devices/walkplay/models';
 import type { DeviceAdapter } from '../devices/types';
@@ -89,6 +91,8 @@ function parseHexId(s: string): number {
 async function connectAdapterFromList(devices: HIDDevice[]): Promise<DeviceAdapter | null> {
   const walk = pickWalkplayInterface(devices);
   if (walk) return connectWalkplay(walk);
+  const ktmicro = pickKtmicroInterface(devices);
+  if (ktmicro) return connectKtmicro(ktmicro);
   const fiio = pickFiioInterface(devices);
   if (fiio) return connectFiio(fiio);
   return null;
@@ -211,6 +215,23 @@ export function Verify() {
         },
       };
     }
+    const ktmicro = pickKtmicroInterface(granted);
+    if (ktmicro) {
+      const a = await connectKtmicro(ktmicro);
+      const model = findKtmicroModel(a.info.vendorId, a.info.productId)!;
+      return {
+        kind: 'adapter',
+        adapter: a,
+        device: {
+          name: a.info.productName || model.name,
+          vendorId: hex4(a.info.vendorId),
+          productId: hex4(a.info.productId),
+          firmware: a.info.firmware,
+          listed: true,
+          status: deviceStatus(true, model.untested),
+        },
+      };
+    }
     const fiio = pickFiioInterface(granted);
     if (fiio) {
       const a = await connectFiio(fiio);
@@ -242,6 +263,23 @@ export function Verify() {
           status: 'unlisted',
         },
         probeDetail: lines.join('\n'),
+      };
+    }
+    const ktmicroRaw = granted.find((d) => d.vendorId === KTMICRO_VENDOR_ID);
+    if (ktmicroRaw) {
+      const descriptor = describeHid(ktmicroRaw);
+      return {
+        kind: 'probe',
+        device: {
+          name: ktmicroRaw.productName || null,
+          vendorId: hex4(ktmicroRaw.vendorId),
+          productId: hex4(ktmicroRaw.productId),
+          firmware: null,
+          listed: false,
+          status: 'unlisted',
+          descriptor,
+        },
+        probeDetail: 'Descriptor-only probe (no commands sent)',
       };
     }
     const d = granted[0];

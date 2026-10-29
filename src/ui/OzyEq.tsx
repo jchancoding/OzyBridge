@@ -7,6 +7,7 @@ import { fitProfile } from '../core/fit';
 import { emptyProfile, FREE_LIMITS } from '../core/freeLimits';
 import { decodeShareFragment, encodeShareFragment } from '../core/shareLink';
 import { FIIO_MODELS } from '../devices/fiio/models';
+import { KTMICRO_MODELS } from '../devices/ktmicro/models';
 import { WALKPLAY_MODELS } from '../devices/walkplay/models';
 import { download } from './download';
 import { EqEditor } from './EqEditor';
@@ -23,7 +24,7 @@ const DEFAULT_NAME = 'OzyEQ';
 type Notice = { kind: 'ok' | 'info' | 'error' | 'warn'; text: string } | null;
 type AltExportFormat = 'wavelet' | 'equalizerapo';
 
-const DEVICES: { name: string; limits: EqLimits }[] = [...FIIO_MODELS, ...WALKPLAY_MODELS]
+const DEVICES: { name: string; limits: EqLimits }[] = [...FIIO_MODELS, ...WALKPLAY_MODELS, ...KTMICRO_MODELS]
   .map((m) => ({ name: m.name, limits: m.capabilities as EqLimits }))
   .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
 
