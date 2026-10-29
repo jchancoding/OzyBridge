@@ -242,7 +242,7 @@ export function Verify() {
     const fiio = pickFiioInterface(granted);
     if (fiio) {
       const a = await connectFiio(fiio);
-      const model = findFiioModel(a.info.vendorId, a.info.productId)!;
+      const model = findFiioModel(a.info.vendorId, a.info.productId, a.info.productName)!;
       return {
         kind: 'adapter',
         adapter: a,
@@ -291,7 +291,12 @@ export function Verify() {
     }
     const d = granted.find(canFamilyProbe) ?? granted[0];
     if (!d) return null;
-    const descriptor = describeHid(d);
+    const descriptor = {
+      ...describeHid(d),
+      collections: granted
+        .filter((g) => g.vendorId === d.vendorId && g.productId === d.productId)
+        .flatMap((g) => describeHid(g).collections),
+    };
     if (canFamilyProbe(d)) {
       const probe = await runFamilyProbe(d);
       return {

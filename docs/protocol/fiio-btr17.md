@@ -201,4 +201,8 @@ KA17 and QX13 realise a peaking band's Q as `Q_sent / A`, `A = 10^(|gain dB| / 4
 
 Both captures report 10 bands and decode with our framing. Some models echo sets as `AA 0A` frames; these are not replies and are ignored.
 
+FiiO BTR13 (verified on hardware 2026-10-29, macOS, node-hid bench `scripts/exp-btr13-*.ts`): enumerates as Qualcomm `0x0A12:0x4007`, so it is matched by vendor, product ID and product name "FIIO BTR13". Two HID interfaces: consumer `0x0C` plus `0xFFA0` report 2 (not ours), and `0xFF00` with in/out report 7 (64 bytes), which takes the BTR17 framing unchanged. 10 bands, PK only, ±12 dB, USER1-3 = 7-9, EQ off = 11. Get `0x0B` gets no reply. Single-slot write on USER2 read back exactly, survived an unplug, and restored. The first band read right after a replug can time out once; a retry works.
+
+FiiO BTR15 (`0x2972:0x0047`, 2026-10-29): not supported. With EQ on ("EQ DevKit", bcdDevice `0x0108`) it exposes two audio interfaces and a class-254 interface and no HID at all. With EQ off it exposes one 64-byte feature report on `0xFF00` with no report ID; FiiO Control's bundle never sends feature reports. Nothing sent.
+
 FiiO Oak Nano (0x4016) is held back: its capture reports 8 bands, a flat slot reads preamp +12 dB, and FiiO wrote 7 for a -5 dB preamp. That suggests a +12 dB preamp offset we do not model. Needs a probe from an owner.

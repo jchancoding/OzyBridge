@@ -41,7 +41,7 @@ export function App() {
 
   const attachFiio = async (device: Parameters<typeof connectFiio>[0]) => {
     const a = await connectFiio(device);
-    const name = findFiioModel(a.info.vendorId, a.info.productId)?.name ?? 'your device';
+    const name = findFiioModel(a.info.vendorId, a.info.productId, a.info.productName)?.name ?? 'your device';
     await attach(a, name);
   };
 
@@ -101,7 +101,7 @@ export function App() {
     const family = matchFamily(adapter.info.vendorId, adapter.info.productId, adapter.info.productName);
     const walkplay = family === 'walkplay' ? findWalkplayModel(adapter.info.vendorId, adapter.info.productId, adapter.info.productName) : undefined;
     const ktmicro = family === 'ktmicro' ? findKtmicroModel(adapter.info.vendorId, adapter.info.productId) : undefined;
-    const model = family === 'fiio' ? findFiioModel(adapter.info.vendorId, adapter.info.productId) : walkplay ?? ktmicro;
+    const model = family === 'fiio' ? findFiioModel(adapter.info.vendorId, adapter.info.productId, adapter.info.productName) : walkplay ?? ktmicro;
     return (
       <>
         <main className="app screen">

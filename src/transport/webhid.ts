@@ -204,9 +204,6 @@ const FIIO_VENDOR_ID = 0x2972;
 // WalkPlay vendors (Marigold + scheme 15/16/18 captures). Kept off the FiiO-only chooser.
 const WALKPLAY_VENDOR_IDS = [0x35d8, 0x3302];
 const KTMICRO_VENDOR_ID = 0x31b2;
-// Unlisted vendors for ?verify descriptor probes only. No adapter, no commands.
-const PROBE_VENDOR_IDS = [0x2d87];
-
 export async function requestFiioDevices(): Promise<HIDDevice[]> {
   return navigator.hid.requestDevice({ filters: [{ vendorId: FIIO_VENDOR_ID, usagePage: 0x01 }] });
 }
@@ -216,11 +213,15 @@ export function connectDeviceFilters(): HIDDeviceFilter[] {
     { vendorId: FIIO_VENDOR_ID, usagePage: 0x01 },
     ...WALKPLAY_VENDOR_IDS.map((vendorId) => ({ vendorId })),
     { vendorId: KTMICRO_VENDOR_ID },
+    // FiiO BTR13 (Qualcomm 0x0A12:0x4007): command collection is on 0xFF00; 0xFFA0 is a second interface.
+    { vendorId: 0x0a12, productId: 0x4007, usagePage: 0xff00 },
   ];
 }
 
+// Empty filters list every HID device, so testers with unknown vendor IDs (the BTR13 enumerates
+// as Qualcomm 0x0A12) can still send a report. Unknown devices only get a descriptor probe.
 export function verifyDeviceFilters(): HIDDeviceFilter[] {
-  return [...connectDeviceFilters(), ...PROBE_VENDOR_IDS.map((vendorId) => ({ vendorId }))];
+  return [];
 }
 
 export async function requestConnectDevices(): Promise<HIDDevice[]> {

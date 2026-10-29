@@ -5,7 +5,10 @@ import type { DeviceCapabilities, EqSlot } from '../types';
 export const FIIO_VENDOR_ID = 0x2972;
 
 export interface FiioModel {
+  vendorId?: number;
   productId: number;
+  // Required match when set: Qualcomm-based models report a generic chip vendor ID.
+  productName?: string;
   name: string;
   reportId: number;
   firmwareCmd: boolean;
@@ -123,18 +126,45 @@ export const FIIO_MODELS: FiioModel[] = [
       eqOffSlotId: 240,
     },
   },
+  {
+    vendorId: 0x0a12,
+    productId: 0x4007,
+    productName: 'FIIO BTR13',
+    name: 'FiiO BTR13',
+    reportId: 7,
+    firmwareCmd: false,
+    capabilities: {
+      maxBands: 10,
+      // FiiO Control forces peak when reading BTR13 bands.
+      filterTypes: ['PK'],
+      gain: { min: -12, max: 12 },
+      preamp: { min: -12, max: 12 },
+      q: { min: 0.25, max: 8 },
+      freq: { min: 20, max: 20000 },
+      step: { gain: 0.1, q: 0.01, freq: 1 },
+      defaultFreqs,
+      slots: [...builtInSlots, ...userSlots([7, 8, 9])],
+      eqOffSlotId: 11,
+    },
+  },
 ];
 
-export function findFiioModel(vendorId: number, productId: number): FiioModel | undefined {
-  if (vendorId !== FIIO_VENDOR_ID) return undefined;
-  return FIIO_MODELS.find((m) => m.productId === productId);
+export function findFiioModel(vendorId: number, productId: number, productName?: string): FiioModel | undefined {
+  return FIIO_MODELS.find(
+    (m) =>
+      (m.vendorId ?? FIIO_VENDOR_ID) === vendorId &&
+      m.productId === productId &&
+      (m.productName === undefined || productName?.trim() === m.productName),
+  );
 }
 
-export function pickFiioInterface<T extends Pick<HIDDevice, 'vendorId' | 'productId' | 'collections'>>(
+export function pickFiioInterface<
+  T extends Pick<HIDDevice, 'vendorId' | 'productId' | 'collections'> & { productName?: string },
+>(
   devices: readonly T[],
 ): T | null {
   for (const d of devices) {
-    const model = findFiioModel(d.vendorId, d.productId);
+    const model = findFiioModel(d.vendorId, d.productId, d.productName);
     if (model && hasOutputReport(d, model.reportId)) return d;
   }
   return null;

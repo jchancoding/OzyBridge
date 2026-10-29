@@ -37,7 +37,10 @@ const isReadFrame = (f: Uint8Array) => f[0] === 0x80 || f[4] === 0x52;
 describe('runFamilyProbe', () => {
   it('only offers the probe on devices with output report 0x4B', () => {
     expect(canFamilyProbe(new ScriptedHid(() => null))).toBe(true);
-    expect(canFamilyProbe({ collections: [{ outputReports: [{ reportId: 0 }] }] } as unknown as HIDDevice)).toBe(false);
+    expect(canFamilyProbe({ vendorId: 0x2d87, collections: [{ outputReports: [{ reportId: 0 }] }] } as unknown as HIDDevice)).toBe(false);
+    expect(
+      canFamilyProbe({ vendorId: 0x046d, collections: [{ outputReports: [{ reportId: 0x4b }] }] } as unknown as HIDDevice),
+    ).toBe(false);
   });
 
   it('decodes a WalkPlay band and records silence from KTMicro reads', async () => {
@@ -49,9 +52,11 @@ describe('runFamilyProbe', () => {
       return ex?.responses[0]?.data ?? null;
     });
     const r = await runFamilyProbe(dev as unknown as HidLike, 30);
-    expect(r.lines.find((l) => l.startsWith('walkplay band 1'))).toMatch(/Hz/);
+    const bandLines = r.lines.filter((l) => l.startsWith('walkplay band'));
+    expect(bandLines[0]).toMatch(/^walkplay band 1: .*Hz/);
+    expect(bandLines.length).toBeGreaterThan(1);
+    expect(bandLines.length).toBeLessThanOrEqual(10);
     expect(r.lines.filter((l) => l.startsWith('ktmicro')).every((l) => l.endsWith('no reply'))).toBe(true);
-    expect(dev.sent).toHaveLength(5);
     expect(dev.sent.every(isReadFrame)).toBe(true);
     expect(r.rawHex.some((l) => l.startsWith('in '))).toBe(true);
     expect(dev.opened).toBe(false);
@@ -61,6 +66,7 @@ describe('runFamilyProbe', () => {
     const dev = new ScriptedHid(() => null);
     const r = await runFamilyProbe(dev as unknown as HidLike, 20);
     expect(r.lines).toHaveLength(5);
+    expect(dev.sent).toHaveLength(5);
     expect(r.lines.every((l) => l.endsWith('no reply'))).toBe(true);
     expect(dev.sent.every(isReadFrame)).toBe(true);
   });

@@ -4,6 +4,7 @@ import * as kt from './ktmicro/protocol';
 import * as wp from './walkplay/protocol';
 
 export const FAMILY_PROBE_REPORT_ID = 0x4b;
+const WALKPLAY_PROBE_BANDS = 10;
 
 export interface FamilyProbeResult {
   lines: string[];
@@ -13,8 +14,11 @@ export interface FamilyProbeResult {
 const hex = (b: Uint8Array) => [...b].map((x) => x.toString(16).padStart(2, '0')).join(' ').toUpperCase();
 const msg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-export function canFamilyProbe(device: Pick<HIDDevice, 'collections'>): boolean {
-  return hasOutputReport(device, FAMILY_PROBE_REPORT_ID);
+// The ?verify chooser lists every HID device; read frames only go to known DAC vendors.
+const FAMILY_PROBE_VENDOR_IDS = [0x35d8, 0x3302, 0x31b2, 0x2d87];
+
+export function canFamilyProbe(device: Pick<HIDDevice, 'vendorId' | 'collections'>): boolean {
+  return FAMILY_PROBE_VENDOR_IDS.includes(device.vendorId) && hasOutputReport(device, FAMILY_PROBE_REPORT_ID);
 }
 
 /**
@@ -28,7 +32,7 @@ export async function runFamilyProbe(device: HidLike, timeoutMs = 800): Promise<
   const lines: string[] = [];
   await transport.open();
 
-  const ask = async (label: string, frame: Uint8Array, match: (r: Uint8Array) => boolean, decode: (r: Uint8Array) => string) => {
+  const ask = async (label: string, frame: Uint8Array, match: (r: Uint8Array) => boolean, decode: (r: Uint8Array) => string): Promise<boolean> => {
     try {
       const reply = await transport.request(frame, match);
       try {
@@ -36,14 +40,24 @@ export async function runFamilyProbe(device: HidLike, timeoutMs = 800): Promise<
       } catch (e) {
         lines.push(`${label}: reply did not decode (${msg(e)})`);
       }
+      return true;
     } catch (e) {
       lines.push(`${label}: ${e instanceof TransportTimeoutError ? 'no reply' : msg(e)}`);
+      return false;
     }
   };
 
   try {
     await ask('walkplay firmware', wp.readFirmware(), (r) => wp.matchReply(r, wp.CMD.VERSION), (r) => wp.decodeFirmware(r) || '(empty)');
-    await ask('walkplay band 1', wp.readPeqBand(0), (r) => wp.matchReply(r, wp.CMD.PEQ_VALUES), (r) => formatBandLine(wp.decodePeqBand(r)));
+    for (let i = 0; i < WALKPLAY_PROBE_BANDS; i++) {
+      const ok = await ask(
+        `walkplay band ${i + 1}`,
+        wp.readPeqBand(i),
+        (r) => wp.matchReply(r, wp.CMD.PEQ_VALUES) && r[4] === i,
+        (r) => formatBandLine(wp.decodePeqBand(r)),
+      );
+      if (!ok) break;
+    }
     let gainFreq: Uint8Array | null = null;
     await ask('ktmicro eq state', kt.readEqState(), (r) => kt.matchReply(r, kt.REG_EQ_STATE), (r) => `slot ${kt.decodeEqStateSlot(r)}`);
     await ask('ktmicro band 1 gain/freq', kt.readBandGainFreq(0), (r) => kt.matchReply(r, kt.REG_BAND_BASE), (r) => {

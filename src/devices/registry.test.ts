@@ -19,8 +19,14 @@ describe('matchFamily', () => {
 
   it('returns fiio for every listed FiiO model', () => {
     for (const m of FIIO_MODELS) {
-      expect(matchFamily(0x2972, m.productId)).toBe('fiio');
+      expect(matchFamily(m.vendorId ?? 0x2972, m.productId, m.productName)).toBe('fiio');
     }
+  });
+
+  it('matches the BTR13 on its Qualcomm vendor ID only with the FiiO product name', () => {
+    expect(matchFamily(0x0a12, 0x4007, 'FIIO BTR13')).toBe('fiio');
+    expect(matchFamily(0x0a12, 0x4007, 'Other Qualcomm DAC')).toBeNull();
+    expect(matchFamily(0x0a12, 0x4007)).toBeNull();
   });
 
   it('returns walkplay for every listed WalkPlay model with a product ID', () => {

@@ -49,7 +49,7 @@ const NONE = new Uint8Array(0);
 const sleep = (ms: number) => (ms > 0 ? new Promise<void>((r) => setTimeout(r, ms)) : Promise.resolve());
 
 export async function connectFiio(device: HidLike, opts: ConnectOpts = {}): Promise<FiioAdapter> {
-  const model = findFiioModel(device.vendorId, device.productId);
+  const model = findFiioModel(device.vendorId, device.productId, device.productName);
   if (!model) {
     throw new UnsupportedDeviceError(
       `Unsupported device ${device.vendorId.toString(16)}:${device.productId.toString(16)}`,

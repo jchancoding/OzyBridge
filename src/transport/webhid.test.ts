@@ -163,11 +163,14 @@ describe('device filters', () => {
     expect(vendors).not.toContain(0x2fc6);
   });
 
-  it('offers Cayin in the verify chooser without a usage-page filter', () => {
-    const f = verifyDeviceFilters().find((x) => x.vendorId === 0x2d87);
-    expect(f).toBeDefined();
-    expect(f?.usagePage).toBeUndefined();
-    expect(verifyDeviceFilters().map((x) => x.vendorId)).not.toContain(0x2fc6);
+  it('lists every HID device in the verify chooser', () => {
+    expect(verifyDeviceFilters()).toEqual([]);
+  });
+
+  it('offers only the BTR13 command collection from the Qualcomm vendor ID', () => {
+    expect(connectDeviceFilters().filter((x) => x.vendorId === 0x0a12)).toEqual([
+      { vendorId: 0x0a12, productId: 0x4007, usagePage: 0xff00 },
+    ]);
   });
 });
 
