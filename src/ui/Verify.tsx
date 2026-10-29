@@ -22,6 +22,7 @@ import { connectWalkplay } from '../devices/walkplay/adapter';
 import { findWalkplayModel, pickWalkplayInterface } from '../devices/walkplay/models';
 import type { DeviceAdapter } from '../devices/types';
 import { WriteVerifyError } from '../devices/types';
+import { canFamilyProbe, runFamilyProbe } from '../devices/familyProbe';
 import { describeHid, requestVerifyDevices } from '../transport/webhid';
 import { describeConnectError } from './connectMessages';
 import { download } from './download';
@@ -200,7 +201,7 @@ export function Verify() {
 
   const connectDevice = async (): Promise<
     | { kind: 'adapter'; adapter: DeviceAdapter; device: DeviceReport['device'] }
-    | { kind: 'probe'; device: DeviceReport['device']; probeDetail: string }
+    | { kind: 'probe'; device: DeviceReport['device']; probeDetail: string; rawHex?: string[] }
     | null
   > => {
     const granted = await requestVerifyDevices();
@@ -288,9 +289,26 @@ export function Verify() {
         probeDetail: 'Descriptor-only probe (no commands sent)',
       };
     }
-    const d = granted[0];
+    const d = granted.find(canFamilyProbe) ?? granted[0];
     if (!d) return null;
     const descriptor = describeHid(d);
+    if (canFamilyProbe(d)) {
+      const probe = await runFamilyProbe(d);
+      return {
+        kind: 'probe',
+        device: {
+          name: d.productName || null,
+          vendorId: hex4(d.vendorId),
+          productId: hex4(d.productId),
+          firmware: null,
+          listed: false,
+          status: 'unlisted',
+          descriptor,
+        },
+        probeDetail: ['Read-only family probe on report 0x4B (no writes)', ...probe.lines].join('\n'),
+        rawHex: probe.rawHex,
+      };
+    }
     return {
       kind: 'probe',
       device: {
@@ -398,7 +416,7 @@ export function Verify() {
         return;
       }
       if (conn.kind === 'probe') {
-        steps = setStep(steps, 'probe', 'pass', conn.probeDetail);
+        steps = setStep(steps, 'probe', 'pass', conn.probeDetail, conn.rawHex ? { rawHex: conn.rawHex } : undefined);
         finishReview(steps, conn.device);
         setBusy(false);
         return;
