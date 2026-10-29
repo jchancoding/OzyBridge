@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { connectDeviceFilters, describeHid, HidTransport, TransportClosedError, TransportTimeoutError, type HidLike } from './webhid';
+import { connectDeviceFilters, describeHid, verifyDeviceFilters, HidTransport, TransportClosedError, TransportTimeoutError, type HidLike } from './webhid';
 
 class FakeHid {
   opened = false;
@@ -156,13 +156,18 @@ describe('HidTransport', () => {
   });
 });
 
-describe('connectDeviceFilters', () => {
-  it('offers unlisted probe vendors without a usage-page filter', () => {
+describe('device filters', () => {
+  it('keeps probe-only vendors out of the main connect chooser', () => {
     const vendors = connectDeviceFilters().map((f) => f.vendorId);
-    expect(vendors).toEqual(expect.arrayContaining([0x2fc6, 0x2d87]));
-    for (const id of [0x2fc6, 0x2d87]) {
-      expect(connectDeviceFilters().find((f) => f.vendorId === id)?.usagePage).toBeUndefined();
-    }
+    expect(vendors).not.toContain(0x2d87);
+    expect(vendors).not.toContain(0x2fc6);
+  });
+
+  it('offers Cayin in the verify chooser without a usage-page filter', () => {
+    const f = verifyDeviceFilters().find((x) => x.vendorId === 0x2d87);
+    expect(f).toBeDefined();
+    expect(f?.usagePage).toBeUndefined();
+    expect(verifyDeviceFilters().map((x) => x.vendorId)).not.toContain(0x2fc6);
   });
 });
 
