@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { describeHid, HidTransport, TransportClosedError, TransportTimeoutError, type HidLike } from './webhid';
+import { connectDeviceFilters, describeHid, HidTransport, TransportClosedError, TransportTimeoutError, type HidLike } from './webhid';
 
 class FakeHid {
   opened = false;
@@ -153,6 +153,16 @@ describe('HidTransport', () => {
     await p;
     dev.emit(7, [0x22]);
     expect(seen).toEqual(['out:17', 'in:34']);
+  });
+});
+
+describe('connectDeviceFilters', () => {
+  it('offers unlisted probe vendors without a usage-page filter', () => {
+    const vendors = connectDeviceFilters().map((f) => f.vendorId);
+    expect(vendors).toEqual(expect.arrayContaining([0x2fc6, 0x2d87]));
+    for (const id of [0x2fc6, 0x2d87]) {
+      expect(connectDeviceFilters().find((f) => f.vendorId === id)?.usagePage).toBeUndefined();
+    }
   });
 });
 

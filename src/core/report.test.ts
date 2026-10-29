@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import type { DeviceCapabilities } from '../devices/types';
 import { flatBand, profilesEqual, type EqProfile } from './eq';
-import { formatBandLine, formatReport, overall, testPreset, type DeviceReport } from './report';
+import { formatBandLine, formatReport, overall, serializeVerifyDump, testPreset, verifyDumpFilename, type DeviceReport } from './report';
 
 const caps: DeviceCapabilities = {
   maxBands: 10,
@@ -139,6 +139,37 @@ describe('formatReport', () => {
     expect(text).toContain('out[2]');
     expect(text).toContain('PK 1000 Hz +3.0 dB Q1.00');
     expect(text).toContain('out AA BB');
+  });
+});
+
+describe('verify dump', () => {
+  const report: DeviceReport = {
+    schema: 2,
+    app: 'OzyBridge',
+    browser: 'test',
+    device: {
+      name: 'Allegro Mini',
+      vendorId: '0x31B2',
+      productId: '0x0111',
+      firmware: '1.0',
+      listed: true,
+      status: 'untested',
+    },
+    steps: [{ id: 'read', result: 'pass', rawHex: ['out 01'] }],
+    notes: 'field note',
+  };
+
+  it('serializes a versioned JSON envelope', () => {
+    const parsed = JSON.parse(serializeVerifyDump(report, 'Preamp: 0 dB\n'));
+    expect(parsed.kind).toBe('ozybridge-verify-dump');
+    expect(parsed.version).toBe(1);
+    expect(parsed.exportedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(parsed.report).toEqual(report);
+    expect(parsed.baselineAutoEq).toBe('Preamp: 0 dB');
+  });
+
+  it('names files from USB ids and date', () => {
+    expect(verifyDumpFilename(report)).toMatch(/^ozybridge-verify-31b2-0111-\d{4}-\d{2}-\d{2}\.json$/);
   });
 });
 

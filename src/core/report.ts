@@ -101,6 +101,36 @@ function formatDescriptor(d: HidDeviceDescriptor): string[] {
   return lines;
 }
 
+export interface VerifyDump {
+  kind: 'ozybridge-verify-dump';
+  version: 1;
+  exportedAt: string;
+  report: DeviceReport;
+  baselineAutoEq?: string;
+}
+
+export function buildVerifyDump(report: DeviceReport, baselineAutoEq?: string): VerifyDump {
+  const trimmed = baselineAutoEq?.trimEnd();
+  return {
+    kind: 'ozybridge-verify-dump',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    report,
+    ...(trimmed ? { baselineAutoEq: trimmed } : {}),
+  };
+}
+
+export function serializeVerifyDump(report: DeviceReport, baselineAutoEq?: string): string {
+  return JSON.stringify(buildVerifyDump(report, baselineAutoEq), null, 2);
+}
+
+export function verifyDumpFilename(report: DeviceReport): string {
+  const vid = report.device.vendorId.replace(/^0x/i, '').toLowerCase();
+  const pid = report.device.productId.replace(/^0x/i, '').toLowerCase();
+  const day = new Date().toISOString().slice(0, 10);
+  return `ozybridge-verify-${vid}-${pid}-${day}.json`;
+}
+
 export function formatReport(r: DeviceReport): string {
   const lines: string[] = [
     'OzyBridge device report',
