@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { exportAutoEq, parseAutoEq } from '../core/autoeq';
+import { exportGraphicEq } from '../core/graphicEq';
 import type { EqLimits, EqProfile } from '../core/eq';
 import { parseFiioXml } from '../core/fiioXml';
 import { fitProfile } from '../core/fit';
@@ -20,6 +21,7 @@ const NO_DEVICE = '';
 const DEFAULT_NAME = 'OzyEQ';
 
 type Notice = { kind: 'ok' | 'info' | 'error' | 'warn'; text: string } | null;
+type AltExportFormat = 'wavelet' | 'equalizerapo';
 
 const DEVICES: { name: string; limits: EqLimits }[] = [...FIIO_MODELS, ...WALKPLAY_MODELS]
   .map((m) => ({ name: m.name, limits: m.capabilities as EqLimits }))
@@ -65,6 +67,7 @@ export function OzyEq() {
   const [base, setBase] = useState<EqProfile>(() => initial?.profile ?? emptyProfile(limits));
   const [notice, setNotice] = useState<Notice>(null);
   const [resetN, setResetN] = useState(0);
+  const [altExport, setAltExport] = useState<AltExportFormat>('wavelet');
   const fileRef = useRef<HTMLInputElement>(null);
 
   const { shown, canUndo, canRedo, clear, apply, beginDrag, endDrag, undo, redo } = useEqDraft(base);
@@ -180,10 +183,22 @@ export function OzyEq() {
     }
   };
 
+  const altExportText = (format: AltExportFormat) =>
+    format === 'wavelet' ? exportGraphicEq(current) : exportAutoEq(current);
+  const altExportFile = (format: AltExportFormat) =>
+    format === 'wavelet' ? `${fileBase}-wavelet.txt` : `${fileBase}-equalizerapo.txt`;
+
   const exportButtons = (
     <div className="bar">
       <button className="btn-primary" onClick={() => download(`${fileBase}.txt`, exportAutoEq(current, { omitFlat: true }), 'text/plain')}>Download .txt (Squiglink / AutoEQ)</button>
       <button className="btn-secondary" onClick={() => void copy(exportAutoEq(current, { omitFlat: true }), 'EQ text copied.')}>Copy as text</button>
+      <label className="label" htmlFor="ozyeq-alt-export">Export other format</label>
+      <select id="ozyeq-alt-export" value={altExport} onChange={(e) => setAltExport(e.target.value as AltExportFormat)}>
+        <option value="wavelet">Wavelet GraphicEQ (.txt)</option>
+        <option value="equalizerapo">EqualizerAPO (.txt)</option>
+      </select>
+      <button className="btn-secondary" onClick={() => download(altExportFile(altExport), altExportText(altExport), 'text/plain')}>Download</button>
+      <button className="btn-secondary" onClick={() => void copy(altExportText(altExport), 'Export copied.')}>Copy</button>
       <button className="btn-secondary" title="Copies a link that contains this EQ. Nothing is uploaded." onClick={() => void copy(`${location.origin}${location.pathname}#${encodeShareFragment({ name: fileBase, profile: current })}`, 'Share link copied.')}>Copy share link</button>
     </div>
   );
