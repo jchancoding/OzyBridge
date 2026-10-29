@@ -2,10 +2,33 @@ import type { DeviceCapabilities } from '../devices/types';
 import { flatBand, profilesEqual, type EqBand, type EqProfile } from './eq';
 import { commitNumber } from './step';
 
-export type StepId = 'read' | 'write' | 'readback' | 'replug' | 'restore' | 'probe';
+export type StepId = 'read' | 'write' | 'readback' | 'replug' | 'restore' | 'probe' | 'band' | 'restart';
+
+export interface HidCollectionDescriptor {
+  usagePage: number;
+  usage: number;
+  input: number[];
+  output: number[];
+  feature: number[];
+}
+
+export interface HidDeviceDescriptor {
+  productName: string;
+  vendorId: number;
+  productId: number;
+  collections: HidCollectionDescriptor[];
+}
+
+export interface ReportStep {
+  id: StepId;
+  result: 'pass' | 'fail' | 'skipped';
+  detail?: string;
+  bands?: string[];
+  rawHex?: string[];
+}
 
 export interface DeviceReport {
-  schema: 1;
+  schema: 2;
   app: string;
   browser: string;
   device: {
@@ -15,8 +38,9 @@ export interface DeviceReport {
     firmware: string | null;
     listed: boolean;
     status: 'verified' | 'untested' | 'unlisted';
+    descriptor?: HidDeviceDescriptor;
   };
-  steps: { id: StepId; result: 'pass' | 'fail' | 'skipped'; detail?: string }[];
+  steps: ReportStep[];
   notes: string;
 }
 
@@ -34,6 +58,11 @@ function targetBand(caps: DeviceCapabilities, gain: number): EqBand {
     q: clamp(1, caps.step.q, caps.q),
     enabled: true,
   };
+}
+
+export function formatBandLine(b: EqBand): string {
+  const gainStr = `${b.gain >= 0 ? '+' : ''}${b.gain.toFixed(1)}`;
+  return `${b.type} ${b.freq} Hz ${gainStr} dB Q${b.q.toFixed(2)}`;
 }
 
 export function testPreset(caps: DeviceCapabilities, current: EqProfile): EqProfile {
@@ -60,6 +89,18 @@ export function overall(r: DeviceReport): 'pass' | 'fail' | 'partial' {
   return 'pass';
 }
 
+function formatDescriptor(d: HidDeviceDescriptor): string[] {
+  const lines = ['HID descriptor:'];
+  for (const [i, c] of d.collections.entries()) {
+    const page = `0x${c.usagePage.toString(16)}/0x${c.usage.toString(16)}`;
+    const part = (label: string, ids: number[]) => (ids.length ? ` ${label}[${ids.join(',')}]` : '');
+    lines.push(
+      `  collection ${i}: ${page}${part('in', c.input)}${part('out', c.output)}${part('feat', c.feature)}`,
+    );
+  }
+  return lines;
+}
+
 export function formatReport(r: DeviceReport): string {
   const lines: string[] = [
     'OzyBridge device report',
@@ -70,12 +111,16 @@ export function formatReport(r: DeviceReport): string {
     `Product ID: ${r.device.productId}`,
     `Firmware: ${r.device.firmware ?? 'unknown'}`,
     `Listed: ${r.device.listed ? 'yes' : 'no'} (${r.device.status})`,
-    '',
-    'Steps:',
   ];
+  if (r.device.descriptor) {
+    lines.push(...formatDescriptor(r.device.descriptor));
+  }
+  lines.push('', 'Steps:');
   for (const s of r.steps) {
     const extra = s.detail ? ` — ${s.detail}` : '';
     lines.push(`  ${s.id}: ${s.result}${extra}`);
+    for (const b of s.bands ?? []) lines.push(`    ${b}`);
+    for (const h of s.rawHex ?? []) lines.push(`    ${h}`);
   }
   if (r.notes.trim()) {
     lines.push('', 'Notes:', r.notes.trim());

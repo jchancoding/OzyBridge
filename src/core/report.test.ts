@@ -1,7 +1,13 @@
+// @ts-expect-error no @types/node in this repo; Vitest runs in node
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+// @ts-expect-error no @types/node in this repo; Vitest runs in node
+import { join } from 'node:path';
+// @ts-expect-error no @types/node in this repo; Vitest runs in node
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import type { DeviceCapabilities } from '../devices/types';
 import { flatBand, profilesEqual, type EqProfile } from './eq';
-import { formatReport, overall, testPreset, type DeviceReport } from './report';
+import { formatBandLine, formatReport, overall, testPreset, type DeviceReport } from './report';
 
 const caps: DeviceCapabilities = {
   maxBands: 10,
@@ -54,10 +60,18 @@ describe('testPreset', () => {
   });
 });
 
+describe('formatBandLine', () => {
+  it('formats a readable band line', () => {
+    expect(formatBandLine({ type: 'PK', freq: 1000, gain: 3, q: 1, enabled: true })).toBe(
+      'PK 1000 Hz +3.0 dB Q1.00',
+    );
+  });
+});
+
 describe('formatReport', () => {
   it('includes model and every step', () => {
     const r: DeviceReport = {
-      schema: 1,
+      schema: 2,
       app: 'OzyBridge',
       browser: 'test',
       device: {
@@ -70,8 +84,10 @@ describe('formatReport', () => {
       },
       steps: [
         { id: 'read', result: 'pass' },
+        { id: 'band', result: 'skipped' },
         { id: 'write', result: 'skipped', detail: 'n/a' },
         { id: 'readback', result: 'skipped' },
+        { id: 'restart', result: 'skipped', detail: 'No restart' },
         { id: 'replug', result: 'skipped' },
         { id: 'restore', result: 'skipped' },
         { id: 'probe', result: 'skipped' },
@@ -81,13 +97,54 @@ describe('formatReport', () => {
     const text = formatReport(r);
     expect(text).toContain('FiiO BTR17');
     for (const s of r.steps) expect(text).toContain(s.id);
-    expect(text).toContain('"schema": 1');
+    expect(text).toContain('"schema": 2');
+  });
+
+  it('prints bands, raw hex, and descriptor', () => {
+    const r: DeviceReport = {
+      schema: 2,
+      app: 'OzyBridge',
+      browser: 'test',
+      device: {
+        name: 'Unknown',
+        vendorId: '0x31B2',
+        productId: '0x0001',
+        firmware: null,
+        listed: false,
+        status: 'unlisted',
+        descriptor: {
+          productName: 'DSP Cable',
+          vendorId: 0x31b2,
+          productId: 1,
+          collections: [{ usagePage: 0xff00, usage: 1, input: [1], output: [2], feature: [] }],
+        },
+      },
+      steps: [
+        {
+          id: 'probe',
+          result: 'pass',
+          detail: 'descriptor recorded',
+        },
+        {
+          id: 'read',
+          result: 'pass',
+          bands: ['PK 1000 Hz +3.0 dB Q1.00'],
+          rawHex: ['out AA BB', 'in CC DD'],
+        },
+      ],
+      notes: '',
+    };
+    const text = formatReport(r);
+    expect(text).toContain('HID descriptor:');
+    expect(text).toContain('out[2]');
+    expect(text).toContain('PK 1000 Hz +3.0 dB Q1.00');
+    expect(text).toContain('out AA BB');
   });
 });
 
 describe('overall', () => {
   const base = (): DeviceReport => ({
-    schema: 1,
+    schema: 2,
     app: 'OzyBridge',
     browser: 'x',
     device: {
@@ -114,5 +171,27 @@ describe('overall', () => {
     expect(
       overall({ ...base(), steps: [{ id: 'read', result: 'pass' }, { id: 'write', result: 'fail' }] }),
     ).toBe('partial');
+  });
+});
+
+describe('deviceVersion guard', () => {
+  it('does not reference HIDDevice.deviceVersion under src/', () => {
+    const root = join(fileURLToPath(new URL('.', import.meta.url)), '..');
+    const hits: string[] = [];
+    const walk = (dir: string) => {
+      for (const name of readdirSync(dir)) {
+        const path = join(dir, name);
+        if (statSync(path).isDirectory()) {
+          if (name === 'node_modules') continue;
+          walk(path);
+          continue;
+        }
+        if (!/\.(ts|tsx)$/.test(name) || /\.test\.(ts|tsx)$/.test(name)) continue;
+        const text = readFileSync(path, 'utf8');
+        if (/\bdeviceVersion\b/.test(text)) hits.push(path.slice(root.length + 1));
+      }
+    };
+    walk(root);
+    expect(hits).toEqual([]);
   });
 });

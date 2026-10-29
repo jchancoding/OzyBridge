@@ -40,10 +40,18 @@ export async function connectWalkplay(device: HidLike, opts: ConnectOpts = {}): 
   await transport.open();
 
   const log = opts.log;
-  if (log) transport.subscribe((r) => log('in', r));
+  const frameLog: { dir: 'out' | 'in'; hex: string }[] = [];
+  const frameHex = (b: Uint8Array) => [...b].map((x) => x.toString(16).padStart(2, '0')).join(' ').toUpperCase();
+  const pushFrame = (dir: 'out' | 'in', data: Uint8Array) => {
+    log?.(dir, data);
+    frameLog.push({ dir, hex: frameHex(data) });
+    if (frameLog.length > 200) frameLog.splice(0, frameLog.length - 200);
+  };
+  transport.tap((dir, data) => {
+    pushFrame(dir, data);
+  });
 
   const request = async (frame: Uint8Array, cmd: number): Promise<Uint8Array> => {
-    log?.('out', frame);
     const raw = await transport.request(frame, (r) => matchReply(r, cmd));
     return raw;
   };
@@ -128,5 +136,11 @@ export async function connectWalkplay(device: HidLike, opts: ConnectOpts = {}): 
       locked(async () => {
         throw new ReadOnlyDeviceError();
       }),
+
+    rawFrames() {
+      const out = frameLog.slice();
+      frameLog.length = 0;
+      return out;
+    },
   };
 }

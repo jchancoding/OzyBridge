@@ -1,31 +1,37 @@
 import { useCallback, useMemo, useState } from 'react';
 import { exportAutoEq } from '../core/autoeq';
-import { profilesEqual, type EqProfile } from '../core/eq';
+import { profilesEqual, type EqBand, type EqProfile } from '../core/eq';
 import {
+  formatBandLine,
   formatReport,
   testPreset,
   type DeviceReport,
+  type ReportStep,
   type StepId,
 } from '../core/report';
 import { connectFiio } from '../devices/fiio/adapter';
 import { FIIO_VENDOR_ID, findFiioModel, pickFiioInterface } from '../devices/fiio/models';
 import { probeFiio } from '../devices/fiio/probe';
+import { matchFamily } from '../devices/registry';
 import { connectWalkplay } from '../devices/walkplay/adapter';
 import { findWalkplayModel, pickWalkplayInterface } from '../devices/walkplay/models';
 import type { DeviceAdapter } from '../devices/types';
 import { WriteVerifyError } from '../devices/types';
-import { requestConnectDevices } from '../transport/webhid';
+import { describeHid, requestConnectDevices } from '../transport/webhid';
 import { describeConnectError } from './connectMessages';
 import { Footer } from './Footer';
 import { FORMSUBMIT_ID, submitForm } from './submit';
+import { watchRestart } from './watchRestart';
 import './verify.css';
 
-const STEP_ORDER: StepId[] = ['probe', 'read', 'write', 'readback', 'replug', 'restore'];
+const STEP_ORDER: StepId[] = ['probe', 'read', 'band', 'write', 'readback', 'restart', 'replug', 'restore'];
 const STEP_LABEL: Record<StepId, string> = {
   probe: 'Identify device',
   read: 'Read your EQ',
+  band: 'Single-band write test',
   write: 'Write a test change',
   readback: 'Read it back',
+  restart: 'Device restart after save',
   replug: 'Survives unplug and replug',
   restore: 'Put your EQ back',
 };
@@ -48,11 +54,13 @@ function setStep(
   id: StepId,
   result: 'pass' | 'fail' | 'skipped',
   detail?: string,
+  extra?: Pick<ReportStep, 'bands' | 'rawHex'>,
 ): DeviceReport['steps'] {
   const i = steps.findIndex((s) => s.id === id);
-  if (i < 0) return [...steps, { id, result, detail }];
+  const row: ReportStep = { id, result, detail, ...extra };
+  if (i < 0) return [...steps, row];
   const next = [...steps];
-  next[i] = { id, result, detail };
+  next[i] = row;
   return next;
 }
 
@@ -64,18 +72,37 @@ function pickTestSlot(adapter: DeviceAdapter): Promise<number> {
 }
 
 function writesEnabled(adapter: DeviceAdapter): boolean {
-  return findWalkplayModel(adapter.info.vendorId, adapter.info.productId, adapter.info.productName) === undefined &&
-    adapter.capabilities.slots.some((s) => s.writable);
+  return (
+    matchFamily(adapter.info.vendorId, adapter.info.productId, adapter.info.productName) === 'fiio' &&
+    adapter.capabilities.slots.some((s) => s.writable)
+  );
 }
 
-type Phase = 'idle' | 'running' | 'write-prompt' | 'replug' | 'review';
+function bandMatches(a: EqBand, b: EqBand): boolean {
+  return profilesEqual({ preamp: 0, bands: [a] }, { preamp: 0, bands: [b] });
+}
+
+function parseHexId(s: string): number {
+  return Number.parseInt(s.replace(/^0x/i, ''), 16);
+}
+
+async function connectAdapterFromList(devices: HIDDevice[]): Promise<DeviceAdapter | null> {
+  const walk = pickWalkplayInterface(devices);
+  if (walk) return connectWalkplay(walk);
+  const fiio = pickFiioInterface(devices);
+  if (fiio) return connectFiio(fiio);
+  return null;
+}
+
+type Phase = 'idle' | 'running' | 'write-prompt' | 'restart-reconnect' | 'replug' | 'review';
+type RestartAfter = 'band' | 'write';
 
 export function Verify() {
   const [phase, setPhase] = useState<Phase>('idle');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<DeviceReport>(() => ({
-    schema: 1,
+    schema: 2,
     app: 'OzyBridge',
     browser: typeof navigator !== 'undefined' ? navigator.userAgent : '',
     device: {
@@ -101,6 +128,8 @@ export function Verify() {
   const [copied, setCopied] = useState(false);
   const [sendFailed, setSendFailed] = useState(false);
   const [activity, setActivity] = useState<{ step: StepId; text: string } | null>(null);
+  const [restartAfter, setRestartAfter] = useState<RestartAfter | null>(null);
+  const [bandTest, setBandTest] = useState<EqBand | null>(null);
 
   const stepState = useCallback(
     (id: StepId): 'pending' | 'running' | 'pass' | 'fail' | 'skipped' => {
@@ -162,7 +191,6 @@ export function Verify() {
   const connectDevice = async (): Promise<
     | { kind: 'adapter'; adapter: DeviceAdapter; device: DeviceReport['device'] }
     | { kind: 'probe'; device: DeviceReport['device']; probeDetail: string }
-    | { kind: 'unlisted'; device: DeviceReport['device'] }
     | null
   > => {
     const granted = await requestConnectDevices();
@@ -218,8 +246,9 @@ export function Verify() {
     }
     const d = granted[0];
     if (!d) return null;
+    const descriptor = describeHid(d);
     return {
-      kind: 'unlisted',
+      kind: 'probe',
       device: {
         name: d.productName || null,
         vendorId: hex4(d.vendorId),
@@ -227,7 +256,9 @@ export function Verify() {
         firmware: null,
         listed: false,
         status: 'unlisted',
+        descriptor,
       },
+      probeDetail: 'Descriptor-only probe (no commands sent)',
     };
   };
 
@@ -242,10 +273,13 @@ export function Verify() {
     let readProfile: EqProfile;
     setActivity({ step: 'read', text: 'Reading your EQ from the device...' });
     try {
+      a.rawFrames?.();
       readProfile = await a.readSlot(sid);
+      const rawHex = (a.rawFrames?.() ?? []).map((f) => `${f.dir} ${f.hex}`);
+      const bands = readProfile.bands.map(formatBandLine);
       setBackup(readProfile);
       setDisplayText(exportAutoEq(readProfile).trimEnd());
-      next = setStep(next, 'read', 'pass');
+      next = setStep(next, 'read', 'pass', undefined, { bands, rawHex });
       setReport((r) => ({ ...r, steps: next, device: dev }));
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -253,8 +287,47 @@ export function Verify() {
       return;
     }
 
+    const family = matchFamily(a.info.vendorId, a.info.productId, a.info.productName);
+    if (family === 'fiio') {
+      next = setStep(next, 'band', 'skipped');
+    } else if (a.writeBand) {
+      setActivity({ step: 'band', text: 'Trying a single-band write on band 1...' });
+      const testBand = testPreset(a.capabilities, readProfile).bands[0]!;
+      setBandTest(testBand);
+      a.rawFrames?.();
+      const wr = await watchRestart(a, async () => {
+        await a.writeBand!(sid, 0, testBand);
+      });
+      if (wr.restarted) {
+        setReport((r) => ({ ...r, steps: next, device: dev }));
+        setRestartAfter('band');
+        await a.disconnect().catch(() => {});
+        setAdapter(null);
+        setActivity(null);
+        setPhase('restart-reconnect');
+        return;
+      }
+      if (wr.error) {
+        const msg = wr.error instanceof Error ? wr.error.message : String(wr.error);
+        await failAndRest(next, 'band', msg, a, dev, readProfile, sid, true);
+        return;
+      }
+      const readBack = await a.readSlot(sid);
+      const rb0 = readBack.bands[0];
+      if (!rb0 || !bandMatches(rb0, testBand)) {
+        await failAndRest(next, 'band', 'Single-band read-back does not match', a, dev, readProfile, sid, true);
+        return;
+      }
+      const rawHex = (a.rawFrames?.() ?? []).map((f) => `${f.dir} ${f.hex}`);
+      next = setStep(next, 'band', 'pass', undefined, { bands: [formatBandLine(testBand)], rawHex });
+    } else {
+      next = setStep(next, 'band', 'skipped', 'Single-band writes are not enabled for this model yet');
+    }
+    setReport((r) => ({ ...r, steps: next }));
+
     if (!writesEnabled(a)) {
       next = setStep(setStep(next, 'write', 'skipped', 'Writes are not enabled for this model yet'), 'readback', 'skipped');
+      next = setStep(setStep(next, 'restart', 'skipped', 'No restart'), 'replug', 'skipped');
       setReport((r) => ({ ...r, steps: next }));
       finishReview(next, dev);
       return;
@@ -286,11 +359,6 @@ export function Verify() {
         setBusy(false);
         return;
       }
-      if (conn.kind === 'unlisted') {
-        finishReview(steps, conn.device);
-        setBusy(false);
-        return;
-      }
       setAdapter(conn.adapter);
       setReport((r) => ({ ...r, device: conn.device }));
       await runAfterConnect(conn.adapter, conn.device, steps);
@@ -315,18 +383,110 @@ export function Verify() {
     const dev = report.device;
     setActivity({ step: 'write', text: 'Writing the test change and reading it back. This takes a few seconds...' });
     try {
-      await adapter.writeSlot(slotId, preset);
-      next = setStep(next, 'write', 'pass');
+      setRestartAfter('write');
+      adapter.rawFrames?.();
+      const wr = await watchRestart(adapter, async () => {
+        await adapter.writeSlot(slotId, preset);
+      });
+      const rawHex = (adapter.rawFrames?.() ?? []).map((f) => `${f.dir} ${f.hex}`);
+      if (wr.restarted) {
+        next = setStep(next, 'write', 'pass', 'Device restarted after the write', { rawHex });
+        next = setStep(next, 'readback', 'skipped', 'Checked after reconnect');
+        setWroteTest(true);
+        setReport((r) => ({ ...r, steps: next }));
+        await adapter.disconnect().catch(() => {});
+        setAdapter(null);
+        setActivity(null);
+        setPhase('restart-reconnect');
+        return;
+      }
+      if (wr.error) {
+        const msg =
+          wr.error instanceof WriteVerifyError
+            ? wr.error.message
+            : wr.error instanceof Error
+              ? wr.error.message
+              : String(wr.error);
+        next = setStep(setStep(next, 'write', 'fail', msg), 'readback', 'fail', msg);
+        await failAndRest(next, 'write', msg, adapter, dev, backup, slotId, true);
+        return;
+      }
+      next = setStep(next, 'write', 'pass', undefined, { rawHex });
       next = setStep(next, 'readback', 'pass');
-      setActivity(null);
       setWroteTest(true);
       setReport((r) => ({ ...r, steps: next }));
+      next = setStep(next, 'restart', 'skipped', 'No restart');
+      setReport((r) => ({ ...r, steps: next }));
+      setActivity(null);
       setPhase('replug');
     } catch (e) {
       const msg =
         e instanceof WriteVerifyError ? e.message : e instanceof Error ? e.message : String(e);
       next = setStep(setStep(next, 'write', 'fail', msg), 'readback', 'fail', msg);
       await failAndRest(next, 'write', msg, adapter, dev, backup, slotId, true);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const reconnectAfterRestart = async () => {
+    setError(null);
+    setBusy(true);
+    let next = report.steps;
+    const dev = report.device;
+    const sid = slotId;
+    const test = preset;
+    const bk = backup;
+    const kind = restartAfter;
+    try {
+      const vid = parseHexId(dev.vendorId);
+      const pid = parseHexId(dev.productId);
+      let chooserNeeded = false;
+      let list = await navigator.hid.getDevices();
+      let matches = list.filter((d) => d.vendorId === vid && d.productId === pid);
+      if (matches.length === 0) {
+        chooserNeeded = true;
+        matches = await requestConnectDevices();
+      }
+      const a = await connectAdapterFromList(matches);
+      if (!a || sid === null) {
+        setError('Reconnect to the same device.');
+        setBusy(false);
+        return;
+      }
+      setAdapter(a);
+      const detail = chooserNeeded ? 'chooser needed' : 'permission kept';
+      if (kind === 'band' && bandTest !== null && bk !== null) {
+        setActivity({ step: 'band', text: 'Reading band 1 back after reconnect...' });
+        const read = await a.readSlot(sid);
+        const rb0 = read.bands[0];
+        if (rb0 && bandMatches(rb0, bandTest)) {
+          next = setStep(next, 'band', 'pass', detail, { bands: [formatBandLine(bandTest)] });
+          setPreset(testPreset(a.capabilities, bk));
+          setRestartAfter(null);
+          setReport((r) => ({ ...r, steps: next, device: dev }));
+          setActivity(null);
+          setPhase('write-prompt');
+          return;
+        }
+        next = setStep(next, 'band', 'fail', `${detail}; single-band read-back does not match`);
+        setRestartAfter(null);
+        await failAndRest(next, 'band', 'Single-band read-back does not match', a, dev, bk, sid, true);
+        return;
+      }
+      setActivity({ step: 'restart', text: 'Reading the slot back after reconnect...' });
+      const read = await a.readSlot(sid);
+      if (test && profilesEqual(read, test)) {
+        next = setStep(next, 'restart', 'pass', detail);
+      } else {
+        next = setStep(next, 'restart', 'fail', `${detail}; read profile does not match the test preset`);
+      }
+      setRestartAfter(null);
+      setReport((r) => ({ ...r, steps: next, device: dev }));
+      setActivity(null);
+      setPhase('replug');
+    } catch (e) {
+      setError(describeConnectError(e));
     } finally {
       setBusy(false);
     }
@@ -436,6 +596,13 @@ export function Verify() {
             <button className="btn-primary" type="button" disabled={busy} onClick={continueWrite}>Continue</button>
             <button className="btn-secondary" type="button" disabled={busy} onClick={cancel}>Cancel test</button>
           </div>
+        </div>
+      )}
+
+      {phase === 'restart-reconnect' && (
+        <div className="verify-field">
+          <p className="message">The device restarted after saving. Click Reconnect.</p>
+          <button className="btn-primary" type="button" disabled={busy} onClick={reconnectAfterRestart}>Reconnect</button>
         </div>
       )}
 

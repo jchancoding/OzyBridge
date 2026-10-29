@@ -3,6 +3,7 @@ import { connectFiio } from './devices/fiio/adapter';
 import { FIIO_MODELS, findFiioModel, pickFiioInterface } from './devices/fiio/models';
 import { connectWalkplay } from './devices/walkplay/adapter';
 import { WALKPLAY_MODELS, findWalkplayModel, pickWalkplayInterface } from './devices/walkplay/models';
+import { matchFamily } from './devices/registry';
 import type { DeviceAdapter } from './devices/types';
 import { isWebHidSupported, requestConnectDevices } from './transport/webhid';
 import { Bench } from './ui/Bench';
@@ -86,8 +87,9 @@ export function App() {
   const untestedReadOnly = WALKPLAY_MODELS.filter((m) => m.untested).sort(byName);
 
   if (adapter) {
-    const walkplay = findWalkplayModel(adapter.info.vendorId, adapter.info.productId, adapter.info.productName);
-    const model = findFiioModel(adapter.info.vendorId, adapter.info.productId) ?? walkplay;
+    const family = matchFamily(adapter.info.vendorId, adapter.info.productId, adapter.info.productName);
+    const walkplay = family === 'walkplay' ? findWalkplayModel(adapter.info.vendorId, adapter.info.productId, adapter.info.productName) : undefined;
+    const model = family === 'fiio' ? findFiioModel(adapter.info.vendorId, adapter.info.productId) : walkplay;
     return (
       <>
         <main className="app screen">
