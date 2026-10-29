@@ -2,7 +2,7 @@
 
 Current state for people and agents. Phase history lives in [`docs/ROADMAP.md`](docs/ROADMAP.md). How to work in the repo lives in [`AGENTS.md`](AGENTS.md). The public intro is [`README.md`](README.md).
 
-`docs/ROADMAP.md` still says Phase 7b is on hold. That line predates PRs #21–#25. Use this file for what is on `main`.
+Use this file for what is on `main`.
 
 ## Product
 
@@ -63,6 +63,8 @@ No backend in this repo. Three runtime calls, all documented in `AGENTS.md`:
 
 - A passing `?verify` report on hardware before any `untested` model is promoted.
 - Walkplay writes, after a read-only pass on a real device.
+- Single-slot DSP cables (planned 2026-10-29, specs `docs/agents/tasks/phase-7b-0..3-*.md`): `?verify` upgrades, then KTMicro read, KTMicro write, Moondrop FreeDSP/May. Hardware on loan: Allegro Mini, Chu II DSP, May or FreeDSP. The Chu II product ID is unresolved until a probe.
+- OzyEQ "Export other format" (Wavelet, EqualizerAPO): `docs/agents/tasks/phase-9-export-formats.md`.
 - BTR13 and the held-back FiiO models.
 - Connected-device pass of the Phase 8 motion (hover, boot stagger, scan sweep) and a BTR17 smoke test in both themes.
 - FiiO Control conflict copy has not been confirmed on hardware.

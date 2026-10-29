@@ -61,7 +61,20 @@ Phase 7a (closed 2026-10-27, PRs #4-#10, 170 tests). Specs in `docs/agents/tasks
 - Not yet exercised in a browser against hardware. Smoke-test undo, share links and preset drop on the BTR17.
 - Lesson: executors launched as worktree runners still shared the main checkout and cross-committed. The planner must create each worktree itself and pass its absolute path.
 
-Phase 7b (on hold, needs owners): BTR13 and the held-back models via `?probe`, then one verified write each; promote models out of `untested` as GitHub device reports arrive; Walkplay adapter.
+Phase 7b (in progress; read-only Walkplay and `?verify` are on `main`): BTR13 and the held-back models via `?verify`, then one verified write each; promote models out of `untested` as device reports arrive.
+
+Phase 7b plan, single-slot DSP cables (2026-10-29). We reviewed JohnnyGuerra/dac-peq-manager (MIT) for device leads only, not code. Specs in `docs/agents/tasks/phase-7b-0..3-*.md`, in order:
+
+0. `?verify` upgrades: vendor `0x31B2` in the picker, exact-ID registry with no fallback, descriptor-only probe for unknown devices, report schema 2 (bands, raw hex), single-band step, restart-on-save step. No new commands.
+1. KTMicro read-only (`0x31B2:0x0111` by product name; Chu II DSP only if the probe shows `0x0113`). Allowed: `0x52` reads of `0x24`, `0x26`-`0x2F`, `0x66`.
+2. KTMicro writes: `0x57` bands, `0x53` commit, restart, read-back. Answers whether Chrome keeps the permission after a restart.
+3. Moondrop FreeDSP/May: identify by probe first. FreeDSP Pro/Mini (`0x35D8:0x98D3/4`) go ahead; Conexant FreeDSP (`0x35D8:0x1496`) is write-only and blocked; `0x31B2:0x0112` has no source yet.
+
+Hardware on loan: Moondrop May or FreeDSP, Kiwi Ears Allegro Mini, Moondrop Chu II DSP.
+
+Open facts: Chu II ID (devicePEQ capture `0x31B2:0x0113`, dac-peq-manager `0x1112` or `0x0112`); the KTMicro half-frequency quirk; the meaning of Moondrop `peqIndex`.
+
+Wanted (no captures, no owners): CrinEar Protocol Micro (Walkplay scheme 11, `0x3302:0xC20F`), TRUTHEAR KEYX (`0x3302:0x4362`), LS-TC2 (`0x2972:0x0107`). devicePEQ has scheme 11 captures for other models (Quark2, EPZ TP13, Hi Max, CS43131 HiFi Audio DSP), so a scheme 11 read path can come later. JA11 stays on the held-back FiiO list, since devicePEQ captured it with FiiO framing.
 
 Porting rule for other vendors: port devicePEQ handlers chip by chip into typed adapters, use its captures as test fixtures, keep our command allowlist and read-back. Do not copy its handlers wholesale (its BTR17 save is FiiO's factory reset).
 
@@ -98,6 +111,7 @@ OzyBridge is now partly an EQ designer: EQ design goes hand in hand with DAC imp
 - Targets: Harman IE 2019, Harman MoA 2025, JM-1 (10 dB tilt) from squig.link, PEQdB Diamond supplied by the owner. Bundled in `public/targets/`, loaded same-origin on toggle, all normalised to 0 dB at 1 kHz. Adding one is a file plus an entry in `src/core/targets.ts`.
 - Supersedes the unmerged `phase-9-fr-overlay` branch (built before the editable graph); its core and picker were ported.
 - Specs: `docs/agents/tasks/phase-9a-eq-editor.md` to `phase-9d-overlays-ui.md`.
+- Next (2026-10-29): "Export other format" in OzyEQ: Wavelet GraphicEQ and an EqualizerAPO label (`phase-9-export-formats.md`). PipeWire was dropped because it needs a file path and a service restart we cannot check.
 
 Exit: OzyEQ usable on an iPhone, an Android phone and an iPad (not yet checked on hardware); overlays drawn in both editors; tests, typecheck and build pass.
 
