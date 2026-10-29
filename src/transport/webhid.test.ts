@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { HidTransport, TransportClosedError, TransportTimeoutError, type HidLike } from './webhid';
+import { describeHid, HidTransport, TransportClosedError, TransportTimeoutError, type HidLike } from './webhid';
 
 class FakeHid {
   opened = false;
@@ -142,5 +142,46 @@ describe('HidTransport', () => {
     expect(dev.handlers.size).toBe(0);
     expect(dev.close).toHaveBeenCalled();
     await expect(t.send(new Uint8Array([3]))).rejects.toBeInstanceOf(TransportClosedError);
+  });
+
+  it('tap sees outbound and inbound reports', async () => {
+    const { dev, t } = await make();
+    const seen: string[] = [];
+    t.tap((dir, data) => seen.push(`${dir}:${data[0]}`));
+    const p = t.send(new Uint8Array([0x11]));
+    await flush();
+    await p;
+    dev.emit(7, [0x22]);
+    expect(seen).toEqual(['out:17', 'in:34']);
+  });
+});
+
+describe('describeHid', () => {
+  it('returns collection report ids without opening the device', () => {
+    const dev = new FakeHid();
+    dev.vendorId = 0x31b2;
+    dev.productId = 0x1234;
+    dev.productName = 'Test DSP';
+    dev.collections = [
+      {
+        usagePage: 0xff00,
+        usage: 0x01,
+        inputReports: [{ reportId: 1 }],
+        outputReports: [{ reportId: 2 }],
+        featureReports: [{ reportId: 3 }],
+      } as unknown as HIDCollectionInfo,
+    ];
+    const d = describeHid(dev as unknown as HIDDevice);
+    expect(d.productName).toBe('Test DSP');
+    expect(d.vendorId).toBe(0x31b2);
+    expect(d.collections[0]).toEqual({
+      usagePage: 0xff00,
+      usage: 0x01,
+      input: [1],
+      output: [2],
+      feature: [3],
+    });
+    expect(dev.open).not.toHaveBeenCalled();
+    expect(dev.sendReport).not.toHaveBeenCalled();
   });
 });

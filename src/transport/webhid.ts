@@ -48,6 +48,7 @@ export class HidTransport {
   private gapTimer: ReturnType<typeof setTimeout> | undefined;
   private cancelActive: ((e: unknown) => void) | null = null;
   private listeners = new Set<(data: Uint8Array) => void>();
+  private taps = new Set<(dir: 'out' | 'in', data: Uint8Array) => void>();
 
   constructor(
     private readonly device: HidLike,
@@ -62,6 +63,7 @@ export class HidTransport {
     const e = event as HIDInputReportEvent;
     if (e.reportId !== this.reportId) return;
     const data = new Uint8Array(e.data.buffer, e.data.byteOffset, e.data.byteLength).slice();
+    for (const t of [...this.taps]) t('in', data);
     for (const l of [...this.listeners]) l(data);
   };
 
@@ -89,6 +91,11 @@ export class HidTransport {
   subscribe(listener: (data: Uint8Array) => void): () => void {
     this.listeners.add(listener);
     return () => void this.listeners.delete(listener);
+  }
+
+  tap(cb: (dir: 'out' | 'in', data: Uint8Array) => void): () => void {
+    this.taps.add(cb);
+    return () => void this.taps.delete(cb);
   }
 
   send(bytes: Uint8Array): Promise<void> {
@@ -134,6 +141,7 @@ export class HidTransport {
     }
     const padded = new Uint8Array(this.outputLength);
     padded.set(bytes);
+    for (const t of [...this.taps]) t('out', padded.slice());
     await this.device.sendReport(this.reportId, padded);
   }
 
@@ -195,6 +203,7 @@ export function hasOutputReport(device: Pick<HIDDevice, 'collections'>, reportId
 const FIIO_VENDOR_ID = 0x2972;
 // WalkPlay vendors (Marigold + scheme 15/16/18 captures). Kept off the FiiO-only chooser.
 const WALKPLAY_VENDOR_IDS = [0x35d8, 0x3302];
+const KTMICRO_VENDOR_ID = 0x31b2;
 
 export async function requestFiioDevices(): Promise<HIDDevice[]> {
   return navigator.hid.requestDevice({ filters: [{ vendorId: FIIO_VENDOR_ID, usagePage: 0x01 }] });
@@ -205,8 +214,41 @@ export async function requestConnectDevices(): Promise<HIDDevice[]> {
     filters: [
       { vendorId: FIIO_VENDOR_ID, usagePage: 0x01 },
       ...WALKPLAY_VENDOR_IDS.map((vendorId) => ({ vendorId })),
+      { vendorId: KTMICRO_VENDOR_ID },
     ],
   });
+}
+
+export interface HidCollectionDescriptor {
+  usagePage: number;
+  usage: number;
+  input: number[];
+  output: number[];
+  feature: number[];
+}
+
+export interface HidDeviceDescriptor {
+  productName: string;
+  vendorId: number;
+  productId: number;
+  collections: HidCollectionDescriptor[];
+}
+
+export function describeHid(
+  device: Pick<HIDDevice, 'productName' | 'vendorId' | 'productId' | 'collections'>,
+): HidDeviceDescriptor {
+  return {
+    productName: device.productName ?? '',
+    vendorId: device.vendorId,
+    productId: device.productId,
+    collections: device.collections.map((c) => ({
+      usagePage: c.usagePage ?? 0,
+      usage: c.usage ?? 0,
+      input: (c.inputReports ?? []).map((r) => r.reportId).filter((id): id is number => id !== undefined),
+      output: (c.outputReports ?? []).map((r) => r.reportId).filter((id): id is number => id !== undefined),
+      feature: (c.featureReports ?? []).map((r) => r.reportId).filter((id): id is number => id !== undefined),
+    })),
+  };
 }
 
 export async function requestFiioDevicesAnyInterface(): Promise<HIDDevice[]> {

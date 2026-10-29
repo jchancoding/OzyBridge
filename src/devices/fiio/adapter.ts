@@ -63,13 +63,20 @@ export async function connectFiio(device: HidLike, opts: ConnectOpts = {}): Prom
   const nextSeq = createSequence();
   let crcMismatches = 0;
   const log = opts.log;
-
-  if (log) transport.subscribe((r) => log('in', r));
+  const frameLog: { dir: 'out' | 'in'; hex: string }[] = [];
+  const frameHex = (b: Uint8Array) => [...b].map((x) => x.toString(16).padStart(2, '0')).join(' ').toUpperCase();
+  const pushFrame = (dir: 'out' | 'in', data: Uint8Array) => {
+    log?.(dir, data);
+    frameLog.push({ dir, hex: frameHex(data) });
+    if (frameLog.length > 200) frameLog.splice(0, frameLog.length - 200);
+  };
+  transport.tap((dir, data) => {
+    pushFrame(dir, data);
+  });
 
   // BTR17 replies carry sequence 0 and CRC 0; only a non-zero wrong CRC counts as a mismatch.
   const get = async (cmd: number, payload: Uint8Array = NONE): Promise<Uint8Array> => {
     const frame = buildFrame('get', cmd, payload, nextSeq());
-    log?.('out', frame);
     const raw = await transport.request(frame, (r) => parseReply(r)?.cmd === cmd);
     const reply = parseReply(raw)!;
     if (!reply.crcOk && raw[6 + reply.payload.length] !== 0) crcMismatches++;
@@ -79,7 +86,6 @@ export async function connectFiio(device: HidLike, opts: ConnectOpts = {}): Prom
   // The BTR17 does not reply to set commands, so sets are sent blind and verified by a later get.
   const set = async (cmd: number, payload: Uint8Array, waitMs: number): Promise<void> => {
     const frame = buildFrame('set', cmd, payload, nextSeq());
-    log?.('out', frame);
     await transport.send(frame);
     await sleep(waitMs);
   };
@@ -250,5 +256,11 @@ export async function connectFiio(device: HidLike, opts: ConnectOpts = {}): Prom
         if (!profilesEqual(readBack, wire)) throw new WriteVerifyError(wire, readBack);
         return fromWireProfile(readBack, caps.qLaw, qStep);
       }),
+
+    rawFrames() {
+      const out = frameLog.slice();
+      frameLog.length = 0;
+      return out;
+    },
   };
 }

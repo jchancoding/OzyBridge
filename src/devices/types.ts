@@ -47,4 +47,6 @@ export interface DeviceAdapter {
   // Optional batch read: reads each slot, reports it as it lands, restores the active slot once at the end.
   readSlots?(ids: number[], onSlot: (id: number, profile: EqProfile) => void): Promise<void>;
   writeSlot(id: number, profile: EqProfile): Promise<EqProfile>;  // resolves with the read-back profile
+  writeBand?(slotId: number, index: number, band: EqProfile['bands'][number]): Promise<EqProfile>;
+  rawFrames?(): { dir: 'out' | 'in'; hex: string }[];
 }
