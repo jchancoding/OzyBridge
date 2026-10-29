@@ -1,6 +1,6 @@
 # iBasso DC07 Pro
 
-Status: probe only. No EQ adapter, no commands sent by OzyBridge.
+Status: not supported. No PEQ, so it is out of OzyBridge's scope and not offered in any chooser.
 
 | Field | Value |
 |---|---|

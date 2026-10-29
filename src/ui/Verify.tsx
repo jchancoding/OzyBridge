@@ -22,7 +22,7 @@ import { connectWalkplay } from '../devices/walkplay/adapter';
 import { findWalkplayModel, pickWalkplayInterface } from '../devices/walkplay/models';
 import type { DeviceAdapter } from '../devices/types';
 import { WriteVerifyError } from '../devices/types';
-import { describeHid, requestConnectDevices } from '../transport/webhid';
+import { describeHid, requestVerifyDevices } from '../transport/webhid';
 import { describeConnectError } from './connectMessages';
 import { download } from './download';
 import { Footer } from './Footer';
@@ -203,7 +203,7 @@ export function Verify() {
     | { kind: 'probe'; device: DeviceReport['device']; probeDetail: string }
     | null
   > => {
-    const granted = await requestConnectDevices();
+    const granted = await requestVerifyDevices();
     const walk = pickWalkplayInterface(granted);
     if (walk) {
       const a = await connectWalkplay(walk);
@@ -490,7 +490,7 @@ export function Verify() {
       let matches = list.filter((d) => d.vendorId === vid && d.productId === pid);
       if (matches.length === 0) {
         chooserNeeded = true;
-        matches = await requestConnectDevices();
+        matches = await requestVerifyDevices();
       }
       const a = await connectAdapterFromList(matches);
       if (!a || sid === null) {
