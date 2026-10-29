@@ -6,6 +6,7 @@ import {
   buildGroups,
   measurementFromFile,
   modelMatches,
+  reviewerSummary,
   variantLabel,
 } from './MeasurementPicker';
 import { loadMeasurement } from './squiglink';
@@ -32,6 +33,12 @@ describe('model search', () => {
     expect(groups.map((g) => g.display)).toEqual(['7Hz Salnotes Zero 2', 'TangZu Wu', 'TangZu Wu x HBB']);
     expect(groups[0]?.sources.map((s) => s.detail)).toEqual(['', '', '', '(sample 02)']);
     expect(modelMatches({ brand: '', name: groups[0]!.hay }, ['salnotes', 'zero', '2'])).toBe(true);
+  });
+
+  it('summarises reviewers', () => {
+    expect(reviewerSummary(['Lestat'])).toBe('Lestat');
+    expect(reviewerSummary(['A', 'B', 'C'])).toBe('A, B, C');
+    expect(reviewerSummary(['A', 'B', 'C', 'D', 'E'])).toBe('5 reviewers: A, B +3');
   });
 
   it('labels variants with the detail moved out of the model name', () => {

@@ -742,6 +742,8 @@ a.btn-primary, a.btn-secondary, a.btn-ozyeq { display: inline-flex; align-items:
 .fr-picker__row { display: flex; flex-direction: column; align-items: stretch; gap: var(--oz-1); min-width: 0; }
 .fr-picker__list { list-style: none; margin: 0; padding: 0; max-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: var(--oz-1); border: 1px solid var(--oz-line); min-width: 0; }
 .fr-picker__list .btn-secondary { width: 100%; text-align: left; white-space: normal; overflow-wrap: anywhere; height: auto; }
+.fr-model-name, .fr-model-sub { display: block; }
+.fr-model-sub { font-size: 0.8125rem; color: var(--oz-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fr-picker select {
   width: 0;
   min-width: 100%;
