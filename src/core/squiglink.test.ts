@@ -1,5 +1,106 @@
 import { describe, expect, it } from 'vitest';
-import { measurementUrls, parsePhoneBook, parseSquigSites } from './squiglink';
+import {
+  commonSpelling,
+  measurementUrls,
+  modelIdentity,
+  normalizeSearch,
+  parsePhoneBook,
+  parseSquigSites,
+} from './squiglink';
+
+describe('modelIdentity', () => {
+  const key = (brand: string, name: string) => modelIdentity(brand, name).key;
+
+  it('merges casing, punctuation and spacing differences', () => {
+    expect(key('7HZ', 'DIABLO')).toBe(key('7hz', 'Diablo'));
+    expect(key('Truthear', 'Zero: Red')).toBe(key('TRUTHEAR', 'Zero RED'));
+    expect(key('Truthear', 'Zero:Red')).toBe(key('Truthear', 'Zero Red'));
+    expect(key('Truthear', 'Zero Blue2')).toBe(key('Truthear', 'Zero Blue 2'));
+    expect(key('7Hz', 'Salnotes Zero ')).toBe(key('7Hz', 'Salnotes Zero'));
+    expect(key('TRUTHEAR', 'ZERO II')).toBe(key('Truthear', 'Zero 2'));
+  });
+
+  it('merges collaborations regardless of which field holds the partner', () => {
+    const crin = key('Truthear', 'x Crinacle Zero: Red');
+    expect(key('TRUTHEAR × Crinacle', 'ZERO: RED')).toBe(crin);
+    expect(key('TruthEar', ' x Crinacle Zero: Red')).toBe(crin);
+    expect(key('Tangzu', 'Wu x HBB')).toBe(key('TangZu x HBB', 'Wu'));
+  });
+
+  it('ignores word order and filler words', () => {
+    const wu = key('Tangzu', 'Zetian Wu Legend');
+    expect(key('TANGZU', 'Wu Zetian Legend')).toBe(wu);
+    expect(key('TangZu', 'Zetian Wu The Legend')).toBe(wu);
+    expect(key('TANGZU x HBB', 'Wu Zetian (Heyday Edition)')).toBe(key('TangZu X HBB', 'Zetian Wu Heyday'));
+  });
+
+  it('keeps collaborations apart from the base model', () => {
+    expect(key('TangZu', 'Wu x HBB')).not.toBe(key('TangZu', 'Wu'));
+    expect(key('Truthear', 'x Crinacle Zero Red')).not.toBe(key('Truthear', 'Zero Red'));
+  });
+
+  it('treats Salnotes as 7Hz', () => {
+    const zero2 = key('7Hz', 'Zero 2');
+    expect(key('7Hz', 'Salnotes Zero 2')).toBe(zero2);
+    expect(key('7hz Salnotes', 'Zero 2')).toBe(zero2);
+    expect(key('7HZ', 'SALNOTES ZERO 2')).toBe(zero2);
+    expect(key('7Hz/Salnotes', 'Zero')).toBe(key('Salnotes', 'Zero'));
+    expect(key('7hz-Salnotes', 'x Crinacle ZERO:2')).toBe(key('7Hz', 'x Crinacle Zero 2'));
+  });
+
+  it('keeps different models apart', () => {
+    const keys = [
+      key('7Hz', 'Zero'),
+      key('7Hz', 'Zero 2'),
+      key('7Hz', 'Zero 3'),
+      key('Truthear', 'Zero'),
+      key('Truthear', 'Zero Red'),
+      key('Truthear', 'Zero Blue 2'),
+      key('Tanchjim', 'Zero Ultima'),
+      key('Tanchjim', 'Zero Ultima (DSP)'),
+      key('CrinEar', 'Diablo'),
+      key('7Hz', 'Diablo'),
+    ];
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it('moves sample, unit and adapter notes into the detail', () => {
+    expect(modelIdentity('7Hz × Crinacle', 'Zero 2 (sample 01)')).toEqual({
+      key: key('7Hz', 'x Crinacle Zero 2'),
+      spelling: '7Hz × Crinacle Zero 2',
+      detail: '(sample 01)',
+    });
+    expect(modelIdentity('7Hz', 'Diablo Set#2').detail).toBe('Set#2');
+    expect(modelIdentity('Truthear', 'Zero: Red S1')).toMatchObject({ spelling: 'Truthear Zero: Red', detail: 'S1' });
+    expect(modelIdentity('Truthear', 'Zero Red 10 Ohm').detail).toBe('10 Ohm');
+    expect(modelIdentity('TRUTHEAR', 'ZERO II IMP').detail).toBe('IMP');
+    expect(modelIdentity('7Hz', 'Salnotes Zero 2 Stock Tip').detail).toBe('Stock Tip');
+    expect(modelIdentity('TANGZU', 'Wukong (Demo)').detail).toBe('(Demo)');
+    expect(modelIdentity('Truthear', 'x Crinacle Zero:BLUE2 (5Ω Impedance Adapter)').detail).toBe('(5Ω Impedance Adapter)');
+  });
+
+  it('keeps model names that only look like details', () => {
+    expect(modelIdentity('Moondrop', 'S8')).toMatchObject({ spelling: 'Moondrop S8', detail: '' });
+    expect(modelIdentity('Tanchjim', 'Zero Ultima (DSP)').detail).toBe('');
+  });
+
+  it('does not repeat a brand already in the name', () => {
+    expect(modelIdentity('7Hz', '7Hz Zero').spelling).toBe('7Hz Zero');
+  });
+});
+
+describe('normalizeSearch', () => {
+  it('splits glued numbers and drops punctuation', () => {
+    expect(normalizeSearch('Zero:Blue2')).toBe('zero blue 2');
+  });
+});
+
+describe('commonSpelling', () => {
+  it('picks the most common spelling, then avoids all caps', () => {
+    expect(commonSpelling(['7HZ DIABLO', '7Hz Diablo', '7Hz Diablo'])).toBe('7Hz Diablo');
+    expect(commonSpelling(['7HZ DIABLO', '7hz Diablo'])).toBe('7hz Diablo');
+  });
+});
 
 describe('parseSquigSites', () => {
   const site = (urlType: string, extra: Record<string, unknown> = {}) => ({

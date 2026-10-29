@@ -1,6 +1,13 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { MeasurementCredit, MeasurementPicker, measurementFromFile, modelMatches } from './MeasurementPicker';
+import {
+  MeasurementCredit,
+  MeasurementPicker,
+  buildGroups,
+  measurementFromFile,
+  modelMatches,
+  variantLabel,
+} from './MeasurementPicker';
 import { loadMeasurement } from './squiglink';
 
 afterEach(() => vi.unstubAllGlobals());
@@ -11,6 +18,26 @@ describe('model search', () => {
   it('matches a model name and skips a token buried inside another word', () => {
     expect(modelMatches({ brand: 'Moondrop', name: 'Aria' }, ['aria'])).toBe(true);
     expect(modelMatches({ brand: 'FIIL', name: 'Key Pro EQ Variation' }, ['aria'])).toBe(false);
+  });
+
+  it('groups reviewer spellings into one model with the common spelling', () => {
+    const db = (reviewer: string) => ({ reviewer, type: 'IEMs', baseUrl: `https://${reviewer}.example/` });
+    const m = (brand: string, name: string) => ({ brand, name, variants: [{ label: '', file: name }] });
+    const groups = buildGroups([
+      { db: db('a'), models: [m('7Hz', 'Salnotes Zero 2')] },
+      { db: db('b'), models: [m('7HZ', 'SALNOTES ZERO 2')] },
+      { db: db('c'), models: [m('7Hz', 'Salnotes Zero 2'), m('7Hz', 'Salnotes Zero 2 (sample 02)')] },
+      { db: db('d'), models: [m('TangZu', 'Wu'), m('TangZu', 'Wu x HBB')] },
+    ]);
+    expect(groups.map((g) => g.display)).toEqual(['7Hz Salnotes Zero 2', 'TangZu Wu', 'TangZu Wu x HBB']);
+    expect(groups[0]?.sources.map((s) => s.detail)).toEqual(['', '', '', '(sample 02)']);
+    expect(modelMatches({ brand: '', name: groups[0]!.hay }, ['salnotes', 'zero', '2'])).toBe(true);
+  });
+
+  it('labels variants with the detail moved out of the model name', () => {
+    expect(variantLabel('(sample 02)', '')).toBe('(sample 02)');
+    expect(variantLabel('(sample 01)', 'foam')).toBe('(sample 01) foam');
+    expect(variantLabel('(sample 01)', 'Zero 2 (foam) (sample 01)')).toBe('Zero 2 (foam) (sample 01)');
   });
 });
 
