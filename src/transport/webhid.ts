@@ -204,19 +204,24 @@ const FIIO_VENDOR_ID = 0x2972;
 // WalkPlay vendors (Marigold + scheme 15/16/18 captures). Kept off the FiiO-only chooser.
 const WALKPLAY_VENDOR_IDS = [0x35d8, 0x3302];
 const KTMICRO_VENDOR_ID = 0x31b2;
+// Unlisted vendors for ?verify descriptor probes. No adapter, no commands.
+const PROBE_VENDOR_IDS = [0x2fc6, 0x2d87];
 
 export async function requestFiioDevices(): Promise<HIDDevice[]> {
   return navigator.hid.requestDevice({ filters: [{ vendorId: FIIO_VENDOR_ID, usagePage: 0x01 }] });
 }
 
+export function connectDeviceFilters(): HIDDeviceFilter[] {
+  return [
+    { vendorId: FIIO_VENDOR_ID, usagePage: 0x01 },
+    ...WALKPLAY_VENDOR_IDS.map((vendorId) => ({ vendorId })),
+    { vendorId: KTMICRO_VENDOR_ID },
+    ...PROBE_VENDOR_IDS.map((vendorId) => ({ vendorId })),
+  ];
+}
+
 export async function requestConnectDevices(): Promise<HIDDevice[]> {
-  return navigator.hid.requestDevice({
-    filters: [
-      { vendorId: FIIO_VENDOR_ID, usagePage: 0x01 },
-      ...WALKPLAY_VENDOR_IDS.map((vendorId) => ({ vendorId })),
-      { vendorId: KTMICRO_VENDOR_ID },
-    ],
-  });
+  return navigator.hid.requestDevice({ filters: connectDeviceFilters() });
 }
 
 export interface HidCollectionDescriptor {

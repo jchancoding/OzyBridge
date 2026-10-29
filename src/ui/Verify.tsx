@@ -1,10 +1,13 @@
 import { useCallback, useMemo, useState } from 'react';
 import { exportAutoEq } from '../core/autoeq';
 import { profilesEqual, type EqBand, type EqProfile } from '../core/eq';
+import { isLocalApp } from '../core/localApp';
 import {
   formatBandLine,
   formatReport,
+  serializeVerifyDump,
   testPreset,
+  verifyDumpFilename,
   type DeviceReport,
   type ReportStep,
   type StepId,
@@ -21,6 +24,7 @@ import type { DeviceAdapter } from '../devices/types';
 import { WriteVerifyError } from '../devices/types';
 import { describeHid, requestConnectDevices } from '../transport/webhid';
 import { describeConnectError } from './connectMessages';
+import { download } from './download';
 import { Footer } from './Footer';
 import { FORMSUBMIT_ID, submitForm } from './submit';
 import { watchRestart } from './watchRestart';
@@ -130,6 +134,8 @@ export function Verify() {
   const [wroteTest, setWroteTest] = useState(false);
   const [sent, setSent] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [dumped, setDumped] = useState(false);
+  const showLocalDump = isLocalApp();
   const [sendFailed, setSendFailed] = useState(false);
   const [activity, setActivity] = useState<{ step: StepId; text: string } | null>(null);
   const [restartAfter, setRestartAfter] = useState<RestartAfter | null>(null);
@@ -582,6 +588,16 @@ export function Verify() {
     setTimeout(() => setCopied(false), 1500);
   };
 
+  const saveLocalDump = () => {
+    download(
+      verifyDumpFilename(fullReport),
+      serializeVerifyDump(fullReport, displayText),
+      'application/json',
+    );
+    setDumped(true);
+    setTimeout(() => setDumped(false), 1500);
+  };
+
   const sendReport = async () => {
     setSendFailed(false);
     const ok = await submitForm('device-report', {
@@ -681,6 +697,11 @@ export function Verify() {
               </button>
             )}
             <button className="btn-secondary" type="button" onClick={copyReport}>{copied ? 'Copied' : 'Copy report'}</button>
+            {showLocalDump && (
+              <button className="btn-secondary" type="button" onClick={saveLocalDump}>
+                {dumped ? 'Saved' : 'Save test file'}
+              </button>
+            )}
             <a className="btn-secondary verify-back" href="/">Done</a>
           </div>
           {sent && (

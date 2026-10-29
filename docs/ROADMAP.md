@@ -76,6 +76,8 @@ Open facts: Chu II ID (devicePEQ capture `0x31B2:0x0113`, dac-peq-manager `0x111
 
 Wanted (no captures, no owners): CrinEar Protocol Micro (Walkplay scheme 11, `0x3302:0xC20F`), TRUTHEAR KEYX (`0x3302:0x4362`), LS-TC2 (`0x2972:0x0107`). devicePEQ has scheme 11 captures for other models (Quark2, EPZ TP13, Hi Max, CS43131 HiFi Audio DSP), so a scheme 11 read path can come later. JA11 stays on the held-back FiiO list, since devicePEQ captured it with FiiO framing.
 
+Probe-only vendors (2026-10-29): iBasso `0x2FC6` and Cayin `0x2D87` are in the `?verify` picker for descriptor probes. The DC07 Pro has no PEQ (`docs/protocol/ibasso-dc07pro.md`). The RU3 needs a probe and a capture of Cayin's app first (`docs/protocol/cayin-ru3.md`).
+
 Porting rule for other vendors: port devicePEQ handlers chip by chip into typed adapters, use its captures as test fixtures, keep our command allowlist and read-back. Do not copy its handlers wholesale (its BTR17 save is FiiO's factory reset).
 
 ## Phase 8: Visual refresh
