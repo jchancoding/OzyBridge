@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OzyBridge — Write EQ to your USB DAC from the browser</title>
+    <meta
+      name="description"
+      content="Drop a Squiglink, AutoEQ, or PeqDB EQ onto a slot and write it to your USB DAC. No app, no account. Works over WebHID in Chrome or Edge."
+    />
+    <link rel="canonical" href="https://jchancoding.github.io/OzyBridge/" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="OzyBridge" />
+    <meta property="og:url" content="https://jchancoding.github.io/OzyBridge/" />
+    <meta property="og:title" content="OzyBridge — Write EQ to your USB DAC from the browser" />
+    <meta
+      property="og:description"
+      content="Drop a Squiglink, AutoEQ, or PeqDB EQ onto a slot and write it straight to your USB DAC. No format conversion, no account, no app."
+    />
+    <meta property="og:image" content="https://jchancoding.github.io/OzyBridge/og-preview.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="OzyBridge EQ workspace showing the BTR17 device bar and a grid of ten EQ slots with response curves." />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="OzyBridge — Write EQ to your USB DAC from the browser" />
+    <meta
+      name="twitter:description"
+      content="Drop a Squiglink, AutoEQ, or PeqDB EQ onto a slot and write it straight to your USB DAC. No account, no app."
+    />
+    <meta name="twitter:image" content="https://jchancoding.github.io/OzyBridge/og-preview.png" />
+    <meta name="theme-color" content="#0E131A" />
+    <script type="module" crossorigin src="./assets/index-B3Ql0KEa.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-DQAGtl8x.css">
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      (function () {
+        try {
+          var p = localStorage.getItem('ozy-theme');
+          var d = p === 'dark' || (p !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.dataset.theme = d ? 'dark' : 'light';
+          var m = localStorage.getItem('ozy-motion');
+          document.documentElement.dataset.motion = m === 'on' || m === 'off' ? m : matchMedia('(prefers-reduced-motion: reduce)').matches ? 'off' : 'on';
+        } catch (e) {}
+      })();
+    </script>
+  </body>
+</html>
