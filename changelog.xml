@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>OzyBridge updates</title>
+    <link>https://ozybridge.com/?changelog</link>
+    <atom:link href="https://ozybridge.com/changelog.xml" rel="self" type="application/rss+xml"/>
+    <description>New devices, fixes and features on OzyBridge.</description>
+    <language>en</language>
+    <lastBuildDate>Sat, 28 Nov 2026 00:00:00 GMT</lastBuildDate>
+    <item>
+      <title>Graph tools and AutoEQ without panels</title>
+      <link>https://ozybridge.com/?changelog#2026-11-28-no-side-panels</link>
+      <guid isPermaLink="false">2026-11-28-no-side-panels</guid>
+      <pubDate>Sat, 28 Nov 2026 00:00:00 GMT</pubDate>
+      <description>Zoom, reset, normalise, average, colours, screenshot and the target curves now sit right on the screen: above and under the graph on wide windows, beside the slot title and under the bands on phones. AutoEQ and import are on the screen too, beside the bands on wide windows, so matching an IEM no longer opens and closes a panel. Redo sits next to Undo. The playing slot is marked by its green play button, so the slot list no longer shifts. Menus on wide windows open under the button you pressed.</description>
+      <category>design</category>
+    </item>
+    <item>
+      <title>Click a slot to play it, hold to save</title>
+      <link>https://ozybridge.com/?changelog#2026-11-28-hold-to-save-headroom</link>
+      <guid isPermaLink="false">2026-11-28-hold-to-save-headroom</guid>
+      <pubDate>Sat, 28 Nov 2026 00:00:00 GMT</pubDate>
+      <description>Clicking a slot now loads it and makes it the playing one. Press and hold a slot to save the curve you are editing into it, with Undo in the message. DACs with a hardware headroom setting, starting with the Qudelix 5K+, get a Headroom control under the preamp: it lowers the whole output to stop clipping without changing your curve, and Auto sets it from the curve's highest boost.</description>
+      <category>feature</category>
+      <category>devices</category>
+    </item>
+    <item>
+      <title>New layout for connected DACs</title>
+      <link>https://ozybridge.com/?changelog#2026-11-28-app-layout</link>
+      <guid isPermaLink="false">2026-11-28-app-layout</guid>
+      <pubDate>Sat, 28 Nov 2026 00:00:00 GMT</pubDate>
+      <description>When a DAC is connected, OzyBridge now opens in its new layout. On phones you get Device, EQ and Library tabs, the graph pinned at the top, large steppers for each band and the Save button under your thumb. On wide screens your slots sit beside the editor. OzyEQ uses the same layout, with Copy EQ link at the bottom and downloads, Reset and device limits under More. AutoEQ asks just two things, your IEM and a target, then one Match button fits the most bands your DAC holds; range, filters and other band counts are under Advanced. To use the old layout for now, add ?classic to the address.</description>
+      <category>design</category>
+    </item>
+    <item>
+      <title>Qudelix 5K+ support</title>
+      <link>https://ozybridge.com/?changelog#2026-11-28-qudelix-5k-plus</link>
+      <guid isPermaLink="false">2026-11-28-qudelix-5k-plus</guid>
+      <pubDate>Sat, 28 Nov 2026 00:00:00 GMT</pubDate>
+      <description>Connect a Qudelix 5K+ over USB to edit its EQ: the 10-band headphone EQ, or all 30 bands when the 5K+ is in All-band mode. Write to any of the 20 custom presets, each saved on the device and read back, and switch between them or the built-in presets. Custom presets you named in the Qudelix app show their names. Tested on a physical unit.</description>
+      <category>devices</category>
+    </item>
+    <item>
+      <title>Denser layout, floating messages</title>
+      <link>https://ozybridge.com/?changelog#2026-11-27-pro-density</link>
+      <guid isPermaLink="false">2026-11-27-pro-density</guid>
+      <pubDate>Fri, 27 Nov 2026 00:00:00 GMT</pubDate>
+      <description>Buttons and fields are shorter, so more fits on screen; on touch screens they still take a full-size tap. The header fits on one row, with a compact language button and a bell that keeps this session's messages. Messages now float over the page instead of pushing it down, and success messages fade on their own. AutoEQ's Range and Filters each take one row, the graph tools are icons, and longer explanations sit behind (?) buttons.</description>
+      <category>design</category>
+    </item>
+    <item>
+      <title>Instant page changes, steadier header</title>
+      <link>https://ozybridge.com/?changelog#2026-11-27-instant-pages</link>
+      <guid isPermaLink="false">2026-11-27-instant-pages</guid>
+      <pubDate>Fri, 27 Nov 2026 00:00:00 GMT</pubDate>
+      <description>Moving between pages from the top bar is now instant, with no fade or blink. The header stays in exactly the same place on every page, the logo says OzyBridge everywhere except OzyEQ, and What's new uses the full width of the window. Connect DAC and Open OzyEQ now match, with a slower, calmer pulse.</description>
+      <category>feature</category>
+    </item>
+    <item>
+      <title>Sharper look, bigger touch targets</title>
+      <link>https://ozybridge.com/?changelog#2026-11-27-mirage-revamped</link>
+      <guid isPermaLink="false">2026-11-27-mirage-revamped</guid>
+      <pubDate>Fri, 27 Nov 2026 00:00:00 GMT</pubDate>
+      <description>The whole site has a new foundation: a dark top bar, white cards on a deeper background, clearer edges on every button and field, and one consistent set of text sizes. Buttons and fields are at least 48 px tall on touch screens, and text meets contrast rules on every surface in both themes.</description>
+      <category>design</category>
+    </item>
+    <item>
+      <title>Simpler device test</title>
+      <link>https://ozybridge.com/?changelog#2026-11-26-device-test</link>
+      <guid isPermaLink="false">2026-11-26-device-test</guid>
+      <pubDate>Thu, 26 Nov 2026 00:00:00 GMT</pubDate>
+      <description>The device test now asks for your email and name up front, runs without the technical log, and sends its report on its own when it finishes. You get a clear result at the end: Full pass, Partial, Read-only, Not recognised or Couldn't connect.</description>
+      <category>feature</category>
+    </item>
+    <item>
+      <title>A/B listen between two slots</title>
+      <link>https://ozybridge.com/?changelog#2026-11-26-ab</link>
+      <guid isPermaLink="false">2026-11-26-ab</guid>
+      <pubDate>Thu, 26 Nov 2026 00:00:00 GMT</pubDate>
+      <description>Mark a slot with Compare, then switch the device between it and the selected slot with one click, or press X, while you listen.</description>
+      <category>feature</category>
+    </item>
+    <item>
+      <title>What's new page and RSS</title>
+      <link>https://ozybridge.com/?changelog#2026-11-26-whats-new</link>
+      <guid isPermaLink="false">2026-11-26-whats-new</guid>
+      <pubDate>Thu, 26 Nov 2026 00:00:00 GMT</pubDate>
+      <description>This page. Follow OzyBridge updates here or in any RSS reader.</description>
+      <category>feature</category>
+    </item>
+    <item>
+      <title>Five more WalkPlay dongles can write EQ</title>
+      <link>https://ozybridge.com/?changelog#2026-11-26-walkplay-v</link>
+      <guid isPermaLink="false">2026-11-26-walkplay-v</guid>
+      <pubDate>Thu, 26 Nov 2026 00:00:00 GMT</pubDate>
+      <description>Five WalkPlay-based models moved from read-only to writable, and the H, V and R tier marks now follow stricter rules.</description>
+      <category>devices</category>
+    </item>
+    <item>
+      <title>Questyle MEX writes</title>
+      <link>https://ozybridge.com/?changelog#2026-11-26-questyle-mex</link>
+      <guid isPermaLink="false">2026-11-26-questyle-mex</guid>
+      <pubDate>Thu, 26 Nov 2026 00:00:00 GMT</pubDate>
+      <description>The Questyle MEX now writes EQ reliably and shows once on the device list.</description>
+      <category>devices</category>
+    </item>
+    <item>
+      <title>OzyBridge in 11 languages</title>
+      <link>https://ozybridge.com/?changelog#2026-11-25-languages</link>
+      <guid isPermaLink="false">2026-11-25-languages</guid>
+      <pubDate>Wed, 25 Nov 2026 00:00:00 GMT</pubDate>
+      <description>Every page is translated: English, Traditional and Simplified Chinese, Cantonese, Japanese, Korean, Spanish, French, Arabic, Russian and Brazilian Portuguese. Pick yours from the header.</description>
+      <category>feature</category>
+    </item>
+    <item>
+      <title>HiBy W4 and Fosi DS3</title>
+      <link>https://ozybridge.com/?changelog#2026-11-25-fosi-hiby</link>
+      <guid isPermaLink="false">2026-11-25-fosi-hiby</guid>
+      <pubDate>Wed, 25 Nov 2026 00:00:00 GMT</pubDate>
+      <description>HiBy W4 parametric EQ is supported and hardware verified. The Fosi DS3 gets all 10 filter types and 32 bands on firmware 1.6.10.</description>
+      <category>devices</category>
+    </item>
+    <item>
+      <title>New look and ozybridge.com</title>
+      <link>https://ozybridge.com/?changelog#2026-11-25-new-site</link>
+      <guid isPermaLink="false">2026-11-25-new-site</guid>
+      <pubDate>Wed, 25 Nov 2026 00:00:00 GMT</pubDate>
+      <description>A new landing page with device search, a header on every page, verification tier marks, and one-tap OzyEQ install on Android. The site now lives at ozybridge.com.</description>
+      <category>design</category>
+    </item>
+  </channel>
+</rss>
